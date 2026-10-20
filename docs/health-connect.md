@@ -51,6 +51,16 @@ samples as they are. Bucketed series (1 m to 1 h) are accepted too, as one value
 5. In the app, run a **Backfill** (Health tab) for 30, 90 or 365 days so Pulse has history to calibrate on.
    Recovery needs 14 nights of HRV for a trusted baseline; it says "calibrating" until then.
 
+### Pulse Mobile as the collector instead
+
+This fork of [Pulse Mobile](https://github.com/adityaongit/pulse-mobile) (branch `claude/health-app-architecture-7qbe4v`
+on `Gwadaboy75/pulse-mobile`) can send to this same endpoint, so one app on the phone both scores locally and feeds
+the site. In the app, open **Réglages › Mon serveur**, paste the pairing link shown under the QR code (or the URL and
+the secret), and tap **Appairer**. The app then posts its Health Connect rows after every sync, in the format above,
+as complete 7-day backfill windows; the first push covers its whole 180-day history. Pulse treats it like the
+companion app (same signature, same `sequence` rule, same pruning on complete windows). The app's own scores and the
+site's are computed by two different engines and may differ slightly for the same night; neither is sent to the other.
+
 The code can be shown again (a second phone, a reinstall), the secret replaced (**New secret**: the phone must scan
 again), or the phone unpaired. Unpairing stops the webhook; nothing the phone sent is deleted.
 
