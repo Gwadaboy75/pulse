@@ -231,7 +231,7 @@ export function Log({ vm }: LogProps) {
       return
     }
     if (close) shut()
-    toast.success(r.data.demo ? `${KIND_LABEL[input.kind]} saved in Pulse (demo)` : `${KIND_LABEL[input.kind]} saved to Google Health`)
+    toast.success(r.data.demo ? `${KIND_LABEL[input.kind]} saved in Pulse` : `${KIND_LABEL[input.kind]} saved to Google Health`)
     router.refresh()
   }
 

@@ -58,7 +58,8 @@ export async function ctxOf(db: Db, userId: number): Promise<QueryCtx> {
   const cfg = getConfig();
   const profile = await getProfile(db, userId);
   if (!profile) throw new Error("profile_missing");
-  return { db, userId, timeZone: profile.timeZone, profile, mode: cfg.dataSource === "google" ? "google" : "demo", now: Math.floor(Date.now() / 1000) };
+  // `google` is the real-account mode, whether the data comes from Google or from the phone's Health Connect.
+  return { db, userId, timeZone: profile.timeZone, profile, mode: cfg.demo ? "demo" : "google", now: Math.floor(Date.now() / 1000) };
 }
 
 export const todayOf = (ctx: QueryCtx) => localDay(ctx.now, ctx.timeZone);

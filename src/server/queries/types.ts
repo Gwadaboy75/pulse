@@ -496,7 +496,8 @@ export type ReportVM = {
 export type ShellStatusVM = {
   mode: "demo" | "google";
   sync: { state: "ok" | "syncing" | "stale" | "error"; lastSuccessAt: number | null };
-  connection: "connected" | "not_connected" | "not_linked" | "no_device" | "importing" | "auth_revoked" | "stale";
+  /** `no_phone`: an instance fed by the phone's Health Connect, with no phone paired or nothing received yet. */
+  connection: "connected" | "not_connected" | "no_phone" | "not_linked" | "no_device" | "importing" | "auth_revoked" | "stale";
   importProgress?: { done: number; total: number };
   today: string;
   firstDay?: string;
@@ -505,14 +506,32 @@ export type ShellStatusVM = {
   streak: { days: number; asOf: string } | null;
 };
 
+/** Settings › Data source › the phone (Life Dashboard Companion posting Health Connect to this server). */
+export type HealthConnectVM = {
+  /** The webhook URL the phone posts to; null until APP_URL is set on the server. */
+  url: string | null;
+  /** Milliseconds; null before the first request (a test ping counts). */
+  lastReceivedAt: number | null;
+  /** Milliseconds; the worker's last successful run over the archived payloads. */
+  lastAppliedAt: number | null;
+  lastSequence: number | null;
+  appVersion: string | null;
+  /** What the phone's data is next to Google: `auto` fills while a Google grant is live, else everything. */
+  role: "auto" | "primary" | "fill";
+  status: "waiting" | "ok" | "stale" | "error";
+  error: string | null;
+};
+
 export type SettingsVM = {
   mode: "demo" | "google";
   source: {
-    label: "Demo data" | "Google Health";
+    label: "Demo data" | "Google Health" | "Health Connect";
     status: "demo" | "not_connected" | "not_linked" | "no_device" | "connected" | "revoked";
     /** The grant predates scopes Pulse now asks for (logging to Google, 2026-10): Settings offers a reconnect. */
     needsPermissions?: boolean;
   };
+  /** A real-account instance accepts a paired phone (null on a demo instance); `healthConnect` is null until one is paired. */
+  healthConnect?: HealthConnectVM | null;
   import: { done: number; total: number } | null;
   sync: { key: string; label: string; lastSuccessAt: number | null; status: "ok" | "stale" | "error" | "never"; error: string | null }[];
   profile: { birthDate: string; age: number; sex: "male" | "female"; maxHr: number; maxHrSource: "set" | "estimated"; timeZone: string; heightCm: number | null };

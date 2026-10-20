@@ -13,6 +13,6 @@ export const adminGate = cache(async () => {
   const user = await currentUser()
   if (!user) redirect("/login")
   const db = getDb()
-  if (getConfig().dataSource !== "google" || !(await isAdmin(db, user.userId))) notFound()
+  if (getConfig().demo || !(await isAdmin(db, user.userId))) notFound()
   return { db, user }
 })

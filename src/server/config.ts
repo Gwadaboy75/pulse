@@ -7,8 +7,12 @@ export class ConfigError extends Error {
 
 const Env = z
   .object({
-    /** Where the data comes from: `demo` (generated, one shared demo user) or `google` (each user connects Google). */
-    DATA_SOURCE: z.enum(["demo", "google"], "must be demo or google").default("demo"),
+    /**
+     * Where the data comes from: `demo` (generated, one shared demo user), `google` (each user connects Google, and may
+     * pair their phone's Health Connect too) or `health-connect` (real accounts, data from the phone alone: no Google
+     * OAuth client needed).
+     */
+    DATA_SOURCE: z.enum(["demo", "google", "health-connect"], "must be demo, google or health-connect").default("demo"),
     /** Postgres. Unset: the local dev database from compose.dev.yaml. */
     DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//, "must be a postgres:// URL").optional(),
     /** Signs sessions and auth tokens (better-auth). Required in production: `openssl rand -base64 32`. */
@@ -66,11 +70,12 @@ const Env = z
       ctx.addIssue({ code: "custom", path: ["COACH_MOCK"], message: "is for tests only, never in production" });
     if (e.ANDROID_PACKAGE_NAME || e.ANDROID_CERT_SHA256) need(["ANDROID_PACKAGE_NAME", "ANDROID_CERT_SHA256"], "together for the Android app");
     if (e.VAPID_PUBLIC_KEY || e.VAPID_PRIVATE_KEY) need(["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"], "together for notifications");
-    if (e.DATA_SOURCE === "google") {
-      need(["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"], "when DATA_SOURCE=google");
-      // Real accounts: sessions must be signed with a secret of your own. Not checked at build time (no .env there).
+    if (e.DATA_SOURCE === "google") need(["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"], "when DATA_SOURCE=google");
+    if (e.DATA_SOURCE !== "demo") {
+      // Real accounts: sessions must be signed with a secret of your own (it also seals the coach keys and the phone's
+      // Health Connect secret). Not checked at build time (no .env there).
       if (process.env.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build") {
-        need(["BETTER_AUTH_SECRET"], "in production when DATA_SOURCE=google (openssl rand -base64 32)");
+        need(["BETTER_AUTH_SECRET"], `in production when DATA_SOURCE=${e.DATA_SOURCE} (openssl rand -base64 32)`);
       }
     }
   });
@@ -86,6 +91,8 @@ export function parseConfig(env: Record<string, string | undefined>) {
   const e = r.data;
   return {
     dataSource: e.DATA_SOURCE,
+    /** A demo instance: generated data, one shared user, no sign-up, no admin panel, no coach. The others hold real accounts. */
+    demo: e.DATA_SOURCE === "demo",
     databaseUrl: e.DATABASE_URL ?? "postgres://pulse:pulse@localhost:5432/pulse",
     authSecret: e.BETTER_AUTH_SECRET ?? null,
     appUrl: e.APP_URL?.replace(/\/$/, "") ?? null,

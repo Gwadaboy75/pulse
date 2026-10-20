@@ -564,9 +564,96 @@ export const pushSubscriptions = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.endpoint] })],
 );
 
+// ── Health Connect ingest (src/server/sources/healthConnect) ─────────────────
+
+/**
+ * The user's phone endpoint: Life Dashboard Companion posts Health Connect payloads to
+ * `/api/ingest/health-connect/<public_id>`, signed with the secret (kept encrypted, coach/crypto.ts). `role` says
+ * what the phone's data is next to a Google grant: `auto` fills only what Google lacks while a grant is live,
+ * `primary` writes everything, `fill` only the nightly vitals and body measurements.
+ */
+export const ingestEndpoints = pgTable("ingest_endpoints", {
+  userId: userId().primaryKey(),
+  publicId: text("public_id").notNull().unique(),
+  secretCiphertext: bytea("secret_ciphertext").notNull(),
+  role: text("role", { enum: ["auto", "primary", "fill"] }).notNull().default("auto"),
+  createdAt: ts("created_at").notNull(),
+  lastReceivedAt: ts("last_received_at"),
+  lastSequence: bigint("last_sequence", { mode: "number" }),
+  /** The newest payload's app version, for the Settings line. */
+  appVersion: text("app_version"),
+  lastError: text("last_error"),
+});
+
+/**
+ * Every payload the phone delivered, gzipped, archived before it is read: the route answers in time and the sync
+ * worker applies them in `sequence` order. A body is dropped RAW_RETENTION_DAYS after it was applied; the row stays
+ * so a repeated payload (same bytes) is recognised.
+ */
+export const ingestPayloads = pgTable(
+  "ingest_payloads",
+  {
+    id: serial("id").primaryKey(),
+    userId: userId(),
+    sequence: bigint("sequence", { mode: "number" }),
+    bodyHash: text("body_hash").notNull(),
+    kind: text("kind", { enum: ["sync", "backfill"] }).notNull(),
+    gzBody: bytea("gz_body"),
+    receivedAt: ts("received_at").notNull(),
+    appliedAt: ts("applied_at"),
+    /** Why applying it failed (a reason, never the body); the next payloads still apply. */
+    error: text("error"),
+    windowStart: ts("window_start"),
+    windowEnd: ts("window_end"),
+    windowComplete: boolean("window_complete"),
+  },
+  (t) => [unique("ingest_payloads_dedupe").on(t.userId, t.bodyHash), index("ingest_payloads_pending").on(t.userId, t.appliedAt)],
+);
+
+/**
+ * Provenance per Health Connect record (sleep, exercise, vitals, the heart-rate and steps records whose samples
+ * went to hr_days/steps_days): the payload that wrote it and the one that deleted it, so a late payload never
+ * resurrects a deleted record and a complete backfill window can prune what the phone no longer has.
+ */
+export const hcRecords = pgTable(
+  "hc_records",
+  {
+    userId: userId(),
+    /** The payload key: `sleep`, `exercise`, `heart_rate`, `steps`, `heart_rate_variability`, ... */
+    type: text("type").notNull(),
+    uuid: text("uuid").notNull(),
+    startTs: ts("start_ts").notNull(),
+    endTs: ts("end_ts").notNull(),
+    day: day("day").notNull(),
+    sourcePkg: text("source_pkg"),
+    seenSeq: bigint("seen_seq", { mode: "number" }).notNull(),
+    deletedSeq: bigint("deleted_seq", { mode: "number" }),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.type, t.uuid] }), index("hc_records_span").on(t.userId, t.type, t.startTs)],
+);
+
+/**
+ * Vitals and body readings as Health Connect samples them (HRV every 5 minutes, one respiratory rate a night, SpO2,
+ * skin-temperature deltas, resting HR, glucose, core temperature, weight, body fat, VO2 max, height). daily_metrics
+ * takes the night's mean (hrv/resp/spo2/skin) or the day's latest value (the rest) from here, so every payload,
+ * and every deletion, leaves the day consistent.
+ */
+export const hcVitals = pgTable(
+  "hc_vitals",
+  {
+    userId: userId(),
+    kind: text("kind", { enum: ["hrv", "resp", "spo2", "skin_temp_delta", "skin_temp_baseline", "rhr", "glucose", "core_temp", "weight", "body_fat", "vo2_max", "height"] }).notNull(),
+    ts: ts("ts").notNull(),
+    value: real("value").notNull(),
+    /** The Health Connect record the sample belongs to (the part before `#` for sampled records). */
+    recordUuid: text("record_uuid").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.kind, t.ts] }), index("hc_vitals_record").on(t.userId, t.recordUuid)],
+);
+
 /** Tables holding a user's synced Google data and what was computed from it (cleared on a Google account switch). */
 export const SYNCED_TABLES = [
   syncState, rawPayloads, hrDays, stepsDays, dailyMetrics, sleepSegments, sleepSessions, exercises, dailyValues,
-  healthRecords, intradayDirty, dailyScores, intradaySeries, reports, foldCheckpoints,
+  healthRecords, intradayDirty, dailyScores, intradaySeries, reports, foldCheckpoints, hcRecords, hcVitals,
 ] as const;
 

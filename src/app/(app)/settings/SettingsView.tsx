@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress"
 import { GoogleFit } from "@/components/brand/GoogleFit"
 import { Mark } from "@/components/brand/Mark"
 import { AppSettings, SignOutForm } from "./AppSettings"
+import { HealthConnect } from "./HealthConnect"
 import { AvatarButtons, ChangePasswordButton, DeleteAccountButton, DisconnectButton, EditProfileButton, SwitchGoogleButton, ThemePicker } from "./SettingsClient"
 import { SettingsLayout, type SettingsSection } from "./SettingsLayout"
 import { CAPTION } from "@/components/metrics/primitives"
@@ -114,7 +115,7 @@ function SyncIcon({ status }: { status: SettingsVM["sync"][number]["status"] }) 
 const STATUS_WORD = { ok: "up to date", stale: "behind", error: "failed", never: "not synced yet" }
 
 /** Per data type, folded under one summary line; it opens itself when something failed or fell behind. */
-function DataTypes({ rows, now }: { rows: SettingsVM["sync"]; now: number }) {
+export function DataTypes({ rows, now }: { rows: SettingsVM["sync"]; now: number }) {
   const failing = rows.filter((r) => r.status === "error").length
   const behind = rows.filter((r) => r.status === "stale").length
   const summary = failing ? `${failing} failing` : behind ? `${behind} behind` : rows.every((r) => r.status === "ok") ? "All up to date" : "Waiting for first sync"
@@ -285,7 +286,27 @@ export function SettingsView({ vm, now, account, coach, pushKey = null, initial 
         </>
       ),
     },
-    { id: "source", label: "Data source", node: <DataSource vm={vm} now={now} googleEmail={account.googleEmail} /> },
+    {
+      id: "source",
+      label: "Data source",
+      node:
+        vm.source.label === "Health Connect" ? (
+          // No Google client on this server: the phone is the data source, and its row is the whole list.
+          <>
+            <HealthConnect hc={vm.healthConnect ?? null} now={now} primary />
+            {vm.sync.length > 0 && (
+              <SectionShell variant="card" level={2} id="sync-types" title="Sync">
+                <DataTypes rows={vm.sync} now={now} />
+              </SectionShell>
+            )}
+          </>
+        ) : (
+          <>
+            <DataSource vm={vm} now={now} googleEmail={account.googleEmail} />
+            {vm.healthConnect !== undefined && <HealthConnect hc={vm.healthConnect} now={now} primary={false} />}
+          </>
+        ),
+    },
     {
       id: "app",
       label: "App",

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { CloudDownload, Plug, TriangleAlert, Unplug, UserX, Watch, WifiOff } from "lucide-react"
+import { CloudDownload, Plug, Smartphone, TriangleAlert, Unplug, UserX, Watch, WifiOff } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ago, clock } from "@/lib/format"
 import { useNow } from "@/hooks/use-now"
@@ -26,7 +26,7 @@ export function ConnectionBanner({ className }: { className?: string }) {
   const state = useOnline() ? s.connection : "offline"
   if (state === "connected" || (s.mode === "demo" && state !== "offline")) return null
   // Settings' Data source card already explains it, with the fix next to it.
-  if ((state === "not_linked" || state === "no_device") && pathname === "/settings") return null
+  if ((state === "not_linked" || state === "no_device" || state === "no_phone") && pathname === "/settings") return null
 
   const total = s.importProgress?.total ?? 180
   const done = s.importProgress?.done ?? 0
@@ -42,6 +42,17 @@ export function ConnectionBanner({ className }: { className?: string }) {
       title: "Connect Google to start",
       body: "Pulse reads your Fitbit data from Google Health. Nothing syncs until you connect.",
       action: connect("Connect Google"),
+      role: "status",
+    },
+    no_phone: {
+      icon: <Smartphone className="text-foreground" />,
+      title: "Pair your phone to start",
+      body: "Pulse reads your Fitbit data from Health Connect, sent by the Life Dashboard Companion app on your phone. Nothing syncs until it is paired.",
+      action: (
+        <Button asChild size="touch" variant="default">
+          <Link href="/settings?s=source">Pair phone</Link>
+        </Button>
+      ),
       role: "status",
     },
     not_linked: {

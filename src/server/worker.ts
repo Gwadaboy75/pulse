@@ -12,6 +12,7 @@ import { recomputeIfNeeded } from "./pipeline";
 import { notifyBrief, notifyRecovery, notifySyncProblem } from "./push";
 import { GoogleError } from "./sources/google/oauth";
 import { googleSource } from "./sources/google/sync";
+import { hcSource, ingestUsers } from "./sources/healthConnect";
 import { ensureDemoUser, seedSource } from "./sources/seed/generate";
 import type { Source } from "./sources/types";
 
@@ -202,7 +203,8 @@ const g = globalThis as typeof globalThis & { __pulseWorker?: Worker };
 /** Starts the process-wide worker once. Called from instrumentation register(). */
 export function startWorker() {
   if (g.__pulseWorker) return;
-  const google = getConfig().dataSource === "google";
+  const { demo: isDemo, google: googleCfg } = getConfig();
+  const google = !!googleCfg;
   // Demo instance: the one demo user, created on the first cycle (and retried on the next if that fails).
   let demo: Promise<number> | undefined;
   const demoUser = () =>
@@ -218,22 +220,36 @@ export function startWorker() {
   // Google instance: everyone with a live grant. A revoked one waits for the user to reconnect.
   const grantees = async () =>
     (await getDb().select({ id: oauthTokens.userId }).from(oauthTokens).where(isNull(oauthTokens.revokedAt)).orderBy(asc(oauthTokens.userId))).map((r) => r.id);
-  const source: Source = google
-    ? {
-        ...googleSource,
-        // Lost Google access: tell the user once a day (the worker then drops them from its cycle).
+  // Lost Google access: tell the user once a day (the worker then drops them from its cycle).
+  const googlePull = async (userId: number) => {
+    try {
+      return await googleSource.pull(userId);
+    } catch (err) {
+      if (err instanceof GoogleError && (err.code === "auth_revoked" || err.code === "invalid_grant")) await notifySyncProblem(getDb(), userId);
+      throw err;
+    }
+  };
+  // A real-account instance: the phone's Health Connect payloads first (archived, cheap), then Google when configured.
+  // The phone's source fails on its own, so a bad payload never holds up the Google run.
+  const source: Source = isDemo
+    ? seedSource
+    : {
         pull: async (userId) => {
+          let changed = false;
           try {
-            return await googleSource.pull(userId);
+            changed = (await hcSource.pull(userId)).changed;
           } catch (err) {
-            if (err instanceof GoogleError && (err.code === "auth_revoked" || err.code === "invalid_grant")) await notifySyncProblem(getDb(), userId);
-            throw err;
+            console.error(`[worker] user ${userId} health-connect pull failed: ${err instanceof Error ? err.message : String(err)}`);
           }
+          if (google) changed = (await googlePull(userId)).changed || changed;
+          return { changed };
         },
-      }
-    : seedSource;
+        ...(google && { pullHeartRate: (userId: number) => googleSource.pullHeartRate!(userId) }),
+      };
+  /** Everyone with something to pull: a live Google grant, a paired phone, or both (once each). */
+  const realUsers = async () => [...new Set([...(google ? await grantees() : []), ...(await ingestUsers(getDb()))])].sort((a, b) => a - b);
   g.__pulseWorker = createWorker({
-    name: google ? "google" : "seed",
+    name: isDemo ? "seed" : google ? "google+health-connect" : "health-connect",
     source,
     recompute: async (userId, changed) => {
       await recomputeIfNeeded(userId, changed);
@@ -241,7 +257,7 @@ export function startWorker() {
       await notifyRecovery(getDb(), userId);
       await notifyBrief(getDb(), userId);
     },
-    users: google ? grantees : async () => [await demoUser()],
+    users: isDemo ? async () => [await demoUser()] : realUsers,
     lock: (userId, fn) => withUserLock(getDb(), userId, fn),
   });
   g.__pulseWorker.start();

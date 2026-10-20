@@ -22,7 +22,7 @@ const Id = z.number().int().positive();
 async function admin(): Promise<number | ActionResult<never>> {
   const me = await currentUser();
   if (!me) return SIGNED_OUT;
-  if (getConfig().dataSource !== "google" || !(await isAdmin(getDb(), me.userId))) return NOT_ADMIN;
+  if (getConfig().demo || !(await isAdmin(getDb(), me.userId))) return NOT_ADMIN;
   return me.userId;
 }
 

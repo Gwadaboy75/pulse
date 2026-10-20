@@ -34,8 +34,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     coachAccess(ctx.db, ctx.userId),
     coachSetup(ctx.db, ctx.userId),
   ])
-  // Same rule as the admin gate: only a Google instance has an admin panel.
-  const admin = getConfig().dataSource === "google" && (await isAdmin(ctx.db, ctx.userId))
+  // Same rule as the admin gate: only a real-account instance has an admin panel.
+  const admin = !getConfig().demo && (await isAdmin(ctx.db, ctx.userId))
   return (
     <div className={FRAME}>
     <DetailShell

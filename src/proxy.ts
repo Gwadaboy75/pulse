@@ -18,9 +18,10 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // Open to all: better-auth's endpoints, Google's redirect (the callback validates itself), the health check, /.well-known
+  // Open to all: better-auth's endpoints, Google's redirect (the callback validates itself), the phone's Health Connect
+  // webhook (api/ingest/, which checks its own HMAC signature), the health check, /.well-known
   // (the Android app's asset links, which Android fetches with no session), build
   // assets, and files under public/ (static extensions only, so a page path with a dot in it, /activity/a.b, is still
   // gated).
-  matcher: ["/((?!api/auth/|oauth/|healthz|_next/|\\.well-known/|.*\\.(?:ico|png|jpe?g|svg|webp|webmanifest|txt|xml|html|js|css|woff2?|map)$).*)"],
+  matcher: ["/((?!api/auth/|api/ingest/|oauth/|healthz|_next/|\\.well-known/|.*\\.(?:ico|png|jpe?g|svg|webp|webmanifest|txt|xml|html|js|css|woff2?|map)$).*)"],
 };

@@ -55,6 +55,7 @@ export async function sampleRange(db: Db, table: SampleTable, userId: number): P
  * removed), for dirty-day marking.
  * - "replace" (heart rate): inside [lo, hi) the stored samples become exactly `incoming`; outside, they stay.
  * - "max" (steps): each minute keeps the larger of stored and incoming; nothing is removed.
+ * - "set" (Health Connect, which sends only what changed): incoming samples are written over stored ones; nothing is removed.
  */
 export async function mergeSamples(
   db: Db,
@@ -62,7 +63,7 @@ export async function mergeSamples(
   userId: number,
   win: { start: number; end: number },
   incoming: Map<number, number>,
-  mode: "replace" | "max",
+  mode: "replace" | "max" | "set",
 ): Promise<number[]> {
   const t = T[table];
   // A loop, not Math.min(...keys): a day can hold 86k keys, past what a spread call takes as arguments.

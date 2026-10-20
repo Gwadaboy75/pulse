@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { oauthTokens, syncState } from "../db/schema";
+import { ingestEndpoints, oauthTokens, syncState } from "../db/schema";
 import { ctxFor, freshDb, USER } from "../testing";
 import { getSettings, getShellStatus, syncErrorText } from "./settings";
 
@@ -63,5 +63,42 @@ describe("sync errors", () => {
     await put([{ type: "heart-rate", backfillDaysDone: 30, backfillDaysTotal: 180, lastError: "[google] heart-rate: http_503 (HTTP 503)" }]);
     expect((await getShellStatus(ctx))).toMatchObject({ connection: "importing", importProgress: { done: 30, total: 180 } });
     expect((await getSettings(ctx)).sync.find((r) => r.key === "heart-rate")?.error).toBe("Google is having trouble, retrying");
+  });
+});
+
+describe("the phone (Health Connect)", () => {
+  // No Google client in the test environment (DATA_SOURCE unset): a real-account instance fed by the phone.
+  it("without a phone the shell asks to pair one; a paired phone that delivered is the connection", async () => {
+    const db = await freshDb();
+    const ctx = { ...ctxFor(db), mode: "google" as const };
+    expect((await getShellStatus(ctx)).connection).toBe("no_phone");
+    let vm = await getSettings(ctx);
+    expect(vm.source).toEqual({ label: "Health Connect", status: "not_connected" });
+    expect(vm.healthConnect).toBeNull();
+    expect(vm.sync).toEqual([]);
+
+    await db.insert(ingestEndpoints).values({ userId: USER, publicId: "p".repeat(22), secretCiphertext: Buffer.alloc(40), createdAt: ctx.now });
+    expect((await getShellStatus(ctx)).connection).toBe("no_phone");
+    vm = await getSettings(ctx);
+    expect(vm.healthConnect).toMatchObject({ status: "waiting", lastReceivedAt: null, url: null, role: "auto" });
+    expect(vm.sync.map((r) => r.key)).toEqual(["health-connect"]);
+
+    await db.update(ingestEndpoints).set({ lastReceivedAt: ctx.now - 60, appVersion: "1.23.0" }).where(eq(ingestEndpoints.userId, USER));
+    await db.insert(syncState).values({ userId: USER, type: "health-connect", lastSuccessAt: ctx.now - 30 });
+    const shell = await getShellStatus(ctx);
+    expect(shell).toMatchObject({ connection: "connected", sync: { state: "ok" } });
+    vm = await getSettings(ctx);
+    expect(vm.source.status).toBe("connected");
+    expect(vm.healthConnect).toMatchObject({ status: "ok", lastReceivedAt: (ctx.now - 60) * 1000, lastAppliedAt: (ctx.now - 30) * 1000, appVersion: "1.23.0" });
+    expect(vm.sync[0]).toMatchObject({ key: "health-connect", status: "ok" });
+
+    await db.update(ingestEndpoints).set({ lastError: "[health-connect] payload 3: SyntaxError" }).where(eq(ingestEndpoints.userId, USER));
+    vm = await getSettings(ctx);
+    expect(vm.healthConnect).toMatchObject({ status: "error", error: "A payload failed to apply (SyntaxError)" });
+  });
+
+  it("a demo instance has no phone card", async () => {
+    const db = await freshDb();
+    expect((await getSettings(ctxFor(db))).healthConnect).toBeUndefined();
   });
 });

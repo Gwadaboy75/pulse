@@ -27,9 +27,9 @@ export async function setCoachMode(db: Db, mode: CoachMode): Promise<void> {
   await db.insert(serverSettings).values({ key: "coach", value: mode }).onConflictDoUpdate({ target: serverSettings.key, set: { value: mode } });
 }
 
-/** Whether this user may use the coach: a Google instance, the mode not off, and (when chosen) picked or an owner. */
+/** Whether this user may use the coach: a real-account instance, the mode not off, and (when chosen) picked or an owner. */
 export async function coachAccess(db: Db, userId: number): Promise<boolean> {
-  if (getConfig().dataSource !== "google") return false;
+  if (getConfig().demo) return false;
   const mode = await coachMode(db);
   if (mode === "off") return false;
   if (mode === "everyone") return true;

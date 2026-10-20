@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation"
 export type ShellStatus = {
   mode: "demo" | "google"
   sync: { state: "ok" | "syncing" | "stale" | "error"; lastSuccessAt: number | null }
-  connection: "connected" | "not_connected" | "not_linked" | "no_device" | "importing" | "auth_revoked" | "stale"
+  connection: "connected" | "not_connected" | "no_phone" | "not_linked" | "no_device" | "importing" | "auth_revoked" | "stale"
   importProgress?: { done: number; total: number }
   /** Today (YYYY-MM-DD) in the user's zone, from the server, so client and server agree. */
   today: string

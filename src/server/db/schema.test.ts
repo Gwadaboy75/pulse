@@ -32,7 +32,7 @@ describe("schema", () => {
           where tc.constraint_type = 'PRIMARY KEY' and k.ordinal_position = 1`,
     );
     const firstCol = new Map(pkFirst.map((r) => [r.t, r.c]));
-    // raw_payloads keys on a serial id; its dedupe unique starts with user_id.
-    expect(data.filter((t) => t !== "raw_payloads" && firstCol.get(t) !== "user_id")).toEqual([]);
+    // raw_payloads and ingest_payloads key on a serial id; their dedupe uniques start with user_id.
+    expect(data.filter((t) => t !== "raw_payloads" && t !== "ingest_payloads" && firstCol.get(t) !== "user_id")).toEqual([]);
   });
 });

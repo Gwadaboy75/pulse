@@ -286,9 +286,9 @@ const CHUNK = 1000;
 /**
  * Multi-row upsert of the user's rows on `key` (user_id leads it), updating a row only when a value differs
  * (`IS DISTINCT FROM`, so an unchanged re-fetch writes nothing). Rows with the same key: the last wins. Returns the
- * rows actually inserted or updated.
+ * rows actually inserted or updated. Shared with the Health Connect source (sources/healthConnect/write.ts).
  */
-async function upsert<T extends PgTable>(db: Db, table: T, key: string[], userId: number, input: Record<string, unknown>[]): Promise<Record<string, unknown>[]> {
+export async function upsert<T extends PgTable>(db: Db, table: T, key: string[], userId: number, input: Record<string, unknown>[]): Promise<Record<string, unknown>[]> {
   if (!input.length) return [];
   const cols = getTableColumns(table) as Record<string, PgColumn>;
   const byKey = new Map(input.map((r) => [key.map((k) => String(r[k])).join("\u0000"), r]));

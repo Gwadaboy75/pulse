@@ -1,17 +1,22 @@
 // More, Settings and the shell's status (spec §7.14, §4.2). Pages also call worker.requestSync() on load.
+import { getConfig } from "../config";
 import { SCORING_VERSION } from "../pipeline";
 import { missingScopes } from "../sources/google/oauth";
+import { type Endpoint, endpointOf, ingestUrl, SYNC_KEY } from "../sources/healthConnect/endpoint";
 import { addDays, wholeYears } from "../time";
 import { and, count, desc, eq, lte, sql } from "drizzle-orm";
 import { dailyScores, journalEntries, journalTags, oauthTokens, reports, syncState } from "../db/schema";
 import { firstDay, type QueryCtx, todayOf } from "./common";
 import { latestReport } from "./home";
-import type { MoreVM, SettingsVM, ShellStatusVM, YourDataVM } from "./types";
+import type { HealthConnectVM, MoreVM, SettingsVM, ShellStatusVM, YourDataVM } from "./types";
 
 export { requestSync } from "../worker";
 
 export const APP_VERSION = "0.1.0";
 const STALE_MS = 2 * 3600_000;
+
+/** The phone's row in the data-types list (sources/healthConnect/sync.ts writes sync_state's `health-connect`). */
+const PHONE_GROUP = { key: SYNC_KEY, label: "Phone (Health Connect)", types: [SYNC_KEY] };
 
 /** Google sync jobs grouped as Settings lists them. */
 const GROUPS: { key: string; label: string; types: string[] }[] = [
@@ -43,8 +48,8 @@ const GROUPS: { key: string; label: string; types: string[] }[] = [
  */
 const OPTIONAL_TYPES = new Set(GROUPS.filter((g) => ["zones", "activity", "nutrition", "vitals", "rhythm"].includes(g.key)).flatMap((g) => g.types).concat("height"));
 
-/** Types every Google account syncs: the shell's sync dot and the import banner follow these alone. */
-const CORE_TYPES = new Set(GROUPS.flatMap((g) => g.types).filter((t) => !OPTIONAL_TYPES.has(t)));
+/** Types every Google account syncs, and the phone's row: the shell's sync dot and the import banner follow these alone. */
+const CORE_TYPES = new Set([...GROUPS.flatMap((g) => g.types).filter((t) => !OPTIONAL_TYPES.has(t)), SYNC_KEY]);
 
 type SyncRow = {
   type: string;
@@ -102,28 +107,60 @@ function importProgress(all: SyncRow[]) {
   return { done: Math.min(...pending.map((r) => r.backfillDaysDone ?? 0)), total: Math.max(...pending.map((r) => r.backfillDaysTotal!)) };
 }
 
+/** The phone's state for Settings: null without an endpoint. `status` follows the worker's `health-connect` row. */
+function healthConnectVM(ctx: QueryCtx, ep: Endpoint | null, rows: SyncRow[]): HealthConnectVM | null {
+  if (!ep) return null;
+  const nowMs = ctx.now * 1000;
+  const row = rows.find((r) => r.type === SYNC_KEY);
+  const error = ep.lastError ?? row?.lastError ?? null;
+  const received = ep.lastReceivedAt;
+  const status: HealthConnectVM["status"] = error ? "error" : received == null ? "waiting" : nowMs - received * 1000 > STALE_MS ? "stale" : "ok";
+  const { appUrl } = getConfig();
+  return {
+    url: appUrl ? ingestUrl(appUrl, ep.publicId) : null,
+    lastReceivedAt: received && received * 1000,
+    lastAppliedAt: row?.lastSuccessAt ? row.lastSuccessAt * 1000 : null,
+    lastSequence: ep.lastSequence,
+    appVersion: ep.appVersion,
+    role: ep.role,
+    status,
+    error: error ? ingestErrorText(error) : null,
+  };
+}
+
+/** A phone-side error as a person reads it. */
+export function ingestErrorText(raw: string): string {
+  if (raw === "bad_json") return "The phone sent something Pulse couldn’t read";
+  const m = /^\[health-connect\] payload \d+: (\w+)$/.exec(raw);
+  return m ? `A payload failed to apply (${m[1]})` : `Failed (${raw})`;
+}
+
 /** Settings `/settings`: data source, auth, per-type sync status, backfill progress and the read-only profile. */
 export async function getSettings(ctx: QueryCtx): Promise<SettingsVM> {
   const nowMs = ctx.now * 1000;
-  const rows = await syncRows(ctx);
-  const statusOf = (last: number | null, error: string | null) =>
+  const [rows, ep] = await Promise.all([syncRows(ctx), ctx.mode === "google" ? endpointOf(ctx.db, ctx.userId) : null]);
+  const statusOf = (last: number | null, error: string | null): SettingsVM["sync"][number]["status"] =>
     error ? "error" : last == null ? "never" : nowMs - last * 1000 > STALE_MS ? "stale" : "ok";
   const auth = await authState(ctx, rows);
-  const needsPermissions = ctx.mode === "google" && (auth === "connected" || auth === "no_device") && (await missingScopes(ctx.db, ctx.userId)).length > 0;
+  // Google is in play when the server has a client, or the account still holds a grant from when it had one.
+  const google = !!getConfig().google || auth !== "not_connected";
+  const needsPermissions = ctx.mode === "google" && google && (auth === "connected" || auth === "no_device") && (await missingScopes(ctx.db, ctx.userId)).length > 0;
   // Not linked is one account-level problem, said once in Data source, not on every row.
   const rowError = (e: string | null) => (e && auth !== "not_linked" ? syncErrorText(e) : null);
+  const group = (g: { key: string; label: string; types: string[] }) => {
+    const members = rows.filter((r) => g.types.includes(r.type));
+    const successes = members.map((r) => r.lastSuccessAt);
+    const last = members.length && successes.every((s) => s != null) ? Math.min(...(successes as number[])) : null;
+    const error = rowError(members.find((r) => r.lastError)?.lastError ?? null);
+    return { key: g.key, label: g.label, lastSuccessAt: last && last * 1000, status: statusOf(last, error), error };
+  };
+  // The phone's row first when a phone is paired; Google's groups only where Google is set up and connected.
   const sync: SettingsVM["sync"] =
     ctx.mode === "demo"
       ? rows
           .filter((r) => r.type === "seed")
           .map((r) => ({ key: "seed", label: "Demo generator", lastSuccessAt: r.lastSuccessAt && r.lastSuccessAt * 1000, status: statusOf(r.lastSuccessAt, r.lastError), error: rowError(r.lastError) }))
-      : GROUPS.map((g) => {
-          const members = rows.filter((r) => g.types.includes(r.type));
-          const successes = members.map((r) => r.lastSuccessAt);
-          const last = members.length && successes.every((s) => s != null) ? Math.min(...(successes as number[])) : null;
-          const error = rowError(members.find((r) => r.lastError)?.lastError ?? null);
-          return { key: g.key, label: g.label, lastSuccessAt: last && last * 1000, status: statusOf(last, error), error };
-        });
+      : [...(ep ? [group(PHONE_GROUP)] : []), ...(google && auth !== "not_connected" ? GROUPS.map(group) : [])];
   const p = ctx.profile;
   const today = todayOf(ctx);
   return {
@@ -131,7 +168,10 @@ export async function getSettings(ctx: QueryCtx): Promise<SettingsVM> {
     source:
       ctx.mode === "demo"
         ? { label: "Demo data", status: "demo" }
-        : { label: "Google Health", status: auth, needsPermissions },
+        : google
+          ? { label: "Google Health", status: auth, needsPermissions }
+          : { label: "Health Connect", status: ep?.lastReceivedAt ? "connected" : "not_connected" },
+    healthConnect: ctx.mode === "demo" ? undefined : healthConnectVM(ctx, ep, rows),
     import: ctx.mode === "google" && auth === "connected" ? importProgress(rows) : null,
     sync,
     profile: {
@@ -232,12 +272,15 @@ export async function getWearStreak(ctx: QueryCtx): Promise<{ days: number; asOf
 const workerRunning = (userId: number) => !!(globalThis as { __pulseWorker?: { isRunning?(userId: number): boolean } }).__pulseWorker?.isRunning?.(userId);
 
 export async function getShellStatus(ctx: QueryCtx): Promise<ShellStatusVM> {
-  const [all, first, streak] = await Promise.all([syncRows(ctx), firstDay(ctx), getWearStreak(ctx)]);
+  const [all, first, streak, ep] = await Promise.all([syncRows(ctx), firstDay(ctx), getWearStreak(ctx), ctx.mode === "google" ? endpointOf(ctx.db, ctx.userId) : null]);
   // The device check is account state (connection below), not a sync that succeeded or failed.
   // Core types only: an optional type, or a retired job's leftover row (rhr/hrv personal ranges), never turns the dot red.
-  const auth = ctx.mode === "google" ? await authState(ctx, all) : "connected";
+  let auth: Awaited<ReturnType<typeof authState>> | "no_phone" = ctx.mode === "google" ? await authState(ctx, all) : "connected";
+  // A paired phone that has delivered is a connection of its own: no "Connect Google" while the phone feeds the account.
+  // Without a Google client on the server, the thing to do is pair a phone.
+  if (auth === "not_connected") auth = ep?.lastReceivedAt ? "connected" : getConfig().google ? "not_connected" : "no_phone";
   // A test account filled by seed:demo never connects Google: it reads as demo data, not "Connect Google".
-  const mode = auth === "not_connected" && all.some((r) => r.type === "seed") ? "demo" : ctx.mode;
+  const mode = (auth === "not_connected" || auth === "no_phone") && all.some((r) => r.type === "seed") ? "demo" : ctx.mode;
   const rows = all.filter((r) => (mode === "demo" ? r.type === "seed" : CORE_TYPES.has(r.type)));
   const successes = rows.map((r) => r.lastSuccessAt).filter((s): s is number => s != null);
   const lastSuccessAt = successes.length ? Math.max(...successes) * 1000 : null;
@@ -248,7 +291,7 @@ export async function getShellStatus(ctx: QueryCtx): Promise<ShellStatusVM> {
   const connection: ShellStatusVM["connection"] =
     mode === "demo"
       ? "connected"
-      : auth === "not_connected" || auth === "not_linked" || auth === "no_device"
+      : auth === "not_connected" || auth === "no_phone" || auth === "not_linked" || auth === "no_device"
         ? auth
         : auth === "revoked"
           ? "auth_revoked"

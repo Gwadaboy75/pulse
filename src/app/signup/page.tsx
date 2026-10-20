@@ -22,8 +22,8 @@ export const metadata: Metadata = { title: "Create account", referrer: "no-refer
 export default async function SignupPage({ searchParams }: { searchParams: Promise<{ invite?: string }> }) {
   await connection()
   if (await currentUser()) redirect("/")
-  const { dataSource, adminEmails } = getConfig()
-  if (dataSource !== "google") redirect("/login")
+  const { demo, adminEmails } = getConfig()
+  if (demo) redirect("/login")
   const db = getDb()
   const [mode, first, { invite }] = await Promise.all([signupMode(db), userCount(db).then((n) => n === 0), searchParams])
   const valid = mode === "invite" && !!invite && (await inviteValid(db, invite))

@@ -17,6 +17,14 @@ describe("parseConfig", () => {
   it("Google mode exposes the client, with no APP_URL by default", () => {
     const c = parseConfig({ ...google, DATA_SOURCE: "google" });
     expect(c.google).toEqual({ clientId: "id", clientSecret: "secret", appUrl: null });
+    expect(c.demo).toBe(false);
+  });
+
+  it("health-connect mode is a real-account instance with no Google client", () => {
+    const c = parseConfig({ DATA_SOURCE: "health-connect", APP_URL: "https://pulse.example.com" });
+    expect(c).toMatchObject({ dataSource: "health-connect", demo: false, google: null, appUrl: "https://pulse.example.com" });
+    expect(parseConfig({}).demo).toBe(true);
+    expect(() => parseConfig({ DATA_SOURCE: "phone" })).toThrow(ConfigError);
   });
 
   it("APP_URL drops its trailing slash; DATABASE_URL, BETTER_AUTH_SECRET and DISABLE_SIGNUP pass through", () => {

@@ -129,5 +129,6 @@ export async function logFor(userId: number, input: LogInput): Promise<ActionRes
     for (const e of readable) await rewindSync(db, userId, e.type, localDay(e.ts, tz), tz);
     requestSync({ userId, force: true });
   }
+  // `demo`: kept in Pulse alone (a demo instance, or one fed by the phone), not written to Google Health.
   return { ok: true, data: { demo: dataSource !== "google" } };
 }

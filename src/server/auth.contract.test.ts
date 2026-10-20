@@ -21,8 +21,11 @@ vi.mock("./worker", async (orig) => ({ ...(await orig<object>()), ...worker }));
 vi.mock("@/server/worker", async (orig) => ({ ...(await orig<object>()), ...worker }));
 
 const ROOT = process.cwd();
-/** Deliberately public: liveness, the OAuth round trip (the callback checks its state), better-auth, signing in and out. */
-const PUBLIC = [/^\/healthz$/, /^\/oauth\//, /^\/api\/auth\//, /^\/login(\/|$)/, /^\/logout$/];
+/**
+ * Deliberately public: liveness, the OAuth round trip (the callback checks its state), better-auth, signing in and out,
+ * and the phone's Health Connect webhook (no session: it checks the HMAC signature of its own endpoint, receive.ts).
+ */
+const PUBLIC = [/^\/healthz$/, /^\/oauth\//, /^\/api\/auth\//, /^\/api\/ingest\//, /^\/login(\/|$)/, /^\/logout$/];
 
 const demoCfg = parseConfig({});
 // Open sign-up: these test better-auth itself; the invite gate has its own tests in auth.test.ts.

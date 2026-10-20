@@ -26,7 +26,8 @@ Daily scores from what your Fitbit or Pixel Watch syncs to Google Health. Built 
 <a href="https://github.com/adityaongit/pulse-mobile/releases/latest"><img src="docs/badges/android.svg" alt="Available on Android" height="56"></a>
 
 **Self-host:** one Docker container with Postgres behind HTTPS, for you and the people you invite. The [setup guide](docs/setup.md)
-walks through Google Cloud, Docker and Tailscale.
+walks through Google Cloud, Docker and Tailscale. No Google Cloud project? This fork can also take your data straight from
+your phone's Health Connect, through the Life Dashboard Companion app: see [docs/health-connect.md](docs/health-connect.md).
 
 **Android:** [Pulse Mobile](https://github.com/adityaongit/pulse-mobile) needs no server or account and scores everything on your
 phone, from Health Connect.

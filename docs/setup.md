@@ -115,6 +115,7 @@ These are the values that matter for this setup. Leave the rest as they are, if 
 
 ```sh
 DATA_SOURCE=google                      # "demo" shows generated data; "google" uses your own
+                                        # "health-connect": your own data from your phone, no Google Cloud (docs/health-connect.md)
 POSTGRES_PASSWORD=...                   # the database password: openssl rand -base64 24
 BETTER_AUTH_SECRET=...                  # signs sessions: openssl rand -base64 32
 ADMIN_EMAILS=you@example.com            # the email you will sign up to Pulse with

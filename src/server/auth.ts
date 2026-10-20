@@ -31,14 +31,14 @@ function createAuth(db: Db) {
     database: drizzleAdapter(db, { provider: "pg", schema }),
     // A demo instance holds only generated data, so a fixed secret is fine there; a real one must set its own
     // (config.ts refuses to start in production without it).
-    secret: cfg.authSecret ?? (cfg.dataSource === "google" ? undefined : DEMO_SECRET),
+    secret: cfg.authSecret ?? (cfg.demo ? DEMO_SECRET : undefined),
     ...(cfg.appUrl && { baseURL: cfg.appUrl, trustedOrigins: [cfg.appUrl] }),
     emailAndPassword: {
       enabled: true,
       minPasswordLength: MIN_PASSWORD,
       maxPasswordLength: MAX_PASSWORD,
       // A demo instance has one shared demo user and no sign-up. A real one asks signupMode (admin panel) per sign-up.
-      disableSignUp: cfg.dataSource !== "google",
+      disableSignUp: cfg.demo,
       autoSignIn: true,
       revokeSessionsOnPasswordReset: true,
     },
