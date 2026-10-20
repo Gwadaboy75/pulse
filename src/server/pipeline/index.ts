@@ -8,6 +8,7 @@
 // Determinism: the same database gives byte-identical daily_scores, and writes only touch rows whose
 // JSON differs, so an unchanged recompute writes nothing.
 import { type Db, getDb, row, sql } from "../db";
+import { getCalcSettings } from "../calc";
 import { getProfile } from "../profile";
 import { load } from "./data";
 import { stage1 } from "./stage1";
@@ -26,7 +27,8 @@ export async function recomputeIfNeeded(userId: number, changed: boolean): Promi
   // Scores need age and sex: before onboarding, sync keeps importing and scoring waits.
   const profile = await getProfile(db, userId);
   if (!profile) return;
-  await recompute(db, { userId, timeZone: profile.timeZone, profile });
+  const calc = await getCalcSettings(db, userId);
+  await recompute(db, { userId, timeZone: profile.timeZone, profile, calc: { strainMethod: calc.strainMethod } });
   console.info(`[pipeline] user ${userId} recomputed in ${lastRun.ms} ms (stage 1: ${lastRun.stage1Days.length} days, stage 2: ${lastRun.stage2Days} days)`);
 }
 

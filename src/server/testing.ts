@@ -6,6 +6,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { inject } from "vitest";
+import { CALC_DEFAULTS } from "./calc";
 import { type Db, MIGRATIONS, rows, setDb } from "./db";
 import * as schema from "./db/schema";
 import { type PipelineOptions, recompute } from "./pipeline";
@@ -83,7 +84,7 @@ export async function copyDb(db: Db): Promise<Db> {
   return wrap(new PGlite({ parsers: PARSERS, loadDataDir: blob }));
 }
 
-export const ctxFor = (db: Db, now = NOW, userId = USER): QueryCtx => ({ db, userId, timeZone: TZ, profile: PROFILE, mode: "demo", now });
+export const ctxFor = (db: Db, now = NOW, userId = USER): QueryCtx => ({ db, userId, timeZone: TZ, profile: PROFILE, calc: CALC_DEFAULTS, mode: "demo", now });
 
 /** Every row of a table for the test user, in key order, as one string. */
 export async function dump(db: Db, table: string, order = "1") {

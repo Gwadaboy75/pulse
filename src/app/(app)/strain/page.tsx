@@ -13,6 +13,7 @@ import { MetricTags } from "@/components/metrics/primitives"
 import { DetailShell } from "@/components/shells/DetailShell"
 import { EmptyState } from "@/components/shells/EmptyState"
 import { InfoButton } from "@/components/shells/InfoButton"
+import { MetricState } from "@/components/shells/MetricState"
 import { SectionShell } from "@/components/shells/SectionShell"
 import { Card } from "@/components/ui/card"
 import { getStrain } from "@/server/queries/strain"
@@ -20,6 +21,7 @@ import { getWeeklyTrends, type TrendViewKey } from "@/server/queries/trendView"
 import { WeeklyTrends } from "@/components/metrics/WeeklyTrends"
 import type { StrainVM } from "@/server/queries/types"
 import { pageDay, type SearchParams } from "../_lib/day"
+import { COPY } from "../_lib/formulas.copy"
 import { STRAIN_INFO, STRAIN_TARGET_INFO } from "../_lib/info"
 import { CAPTION, hrSeries, LABEL, statProps, TodayVsLegend } from "../_lib/view"
 
@@ -83,9 +85,42 @@ export default async function StrainPage({ searchParams }: PageProps<"/strain">)
             <EmptyState body="No activities on this day." />
           )}
         </SectionShell>,
+        <SectionShell key="perceived" variant="card" title={COPY.perceived.title} aside={COPY.perceived.caption} level={2}>
+          <PerceivedLoad vm={vm} />
+        </SectionShell>,
       ]}
       footer={<WeeklyTrends cards={weekly} d={d} today={today} />}
     />
+  )
+}
+
+/** The fork's perceived load (docs/formulas.md): session-RPE over 7 days, Foster's monotony and strain, apart from the heart-rate Strain. */
+function PerceivedLoad({ vm }: { vm: StrainVM }) {
+  const c = COPY.perceived
+  const fr = (n: number, dp = 0) => n.toLocaleString("fr-FR", { maximumFractionDigits: dp })
+  return (
+    <MetricState metric={vm.perceived.metric} skeleton={<div className="h-24" />} renderReason={() => <EmptyState body={c.empty} />}>
+      {(w) => (
+        <div className="space-y-3">
+          <dl className="divide-y divide-border">
+            {(
+              [
+                [c.weekly, fr(w.weeklyLoad)],
+                [c.monotony, w.monotony == null ? "—" : fr(w.monotony, 2)],
+                [c.strain, w.strain == null ? "—" : fr(w.strain)],
+              ] as [string, string][]
+            ).map(([k, v]) => (
+              <div key={k} className="flex min-h-12 items-center justify-between gap-3 py-2">
+                <dt className={cn(LABEL, "text-balance")}>{k}</dt>
+                <dd className="font-numeric text-xl leading-6 font-bold tabular-nums">{v}</dd>
+              </div>
+            ))}
+          </dl>
+          {w.unrated > 0 && <p className={CAPTION}>{c.unrated(w.unrated)}</p>}
+          <p className={CAPTION}>{c.hint}</p>
+        </div>
+      )}
+    </MetricState>
   )
 }
 

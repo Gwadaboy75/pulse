@@ -36,7 +36,10 @@ import { getFitness, getHealthHub, getHealthspan, getMonitor, getStress } from "
 import { dashboardKeys, getHome, activityLogContext } from "./home";
 import { getBehaviours, getJournal, getJournalInsights } from "./journal";
 import { getLog } from "./log";
-import { getAnalytes, getAppointments, getDocument, getDocuments, getLabTrend, getMedicalHub, getMedications } from "./medical";
+import { getEnergy } from "./energy";
+import { getFormulas } from "./formulas";
+import { getHrvPanel } from "./hrv";
+import { getAnalytes, getAppointments, getBloodAge, getClinical, getDocument, getDocuments, getLabTrend, getMedicalHub, getMedications } from "./medical";
 import { DETAIL_KEYS, getMetricDetail } from "./metric";
 import { getRecovery } from "./recovery";
 import { getReport, getReportArchive } from "./reports";
@@ -93,6 +96,11 @@ async function screens(ctx: QueryCtx, activityId: string | null, period: string 
     dashboard: await dashboardKeys(ctx.db, ctx.userId),
     medicalHub: await getMedicalHub(ctx),
     analytes: await getAnalytes(ctx),
+    bloodAge: await getBloodAge(ctx),
+    clinical: await getClinical(ctx),
+    energy: await getEnergy(ctx),
+    hrvPanel: await getHrvPanel(ctx),
+    formulas: getFormulas(ctx),
     labTrend: await getLabTrend(ctx, "hemoglobin"),
     medications: await getMedications(ctx),
     documents: await getDocuments(ctx),

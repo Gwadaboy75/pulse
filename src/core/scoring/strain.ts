@@ -34,7 +34,21 @@ export const edwardsZones: readonly [number, number][] = [
   [50.0, 1],
 ];
 
-export type StrainMethod = "edwards" | "banister";
+/**
+ * The TRIMP a day's Effort is built from (Settings › Calculs; docs/formulas.md): Edwards zone minutes (the
+ * default), Banister's 0.64·x·e^(k·x), or the same kernel under the published shape of a cardio-load model:
+ * nothing under 30 % of heart-rate reserve, a reduced weight between 30 and 40 %, and a minute counting only when
+ * the person moved. The reduction's size and the full filters of that product are not published, so this is
+ * Pulse's variant, named as such.
+ */
+export const STRAIN_METHODS = ["edwards", "banister", "cardio_load"] as const;
+export type StrainMethod = (typeof STRAIN_METHODS)[number];
+
+/** %HRR under which a minute carries no load in the cardio-load variant. */
+export const cardioLoadFloorHRR = 0.3;
+/** The band [floor, cardioLoadLowBandTop) is weighted by cardioLoadLowBandWeight (Pulse's parameter). */
+export const cardioLoadLowBandTop = 0.4;
+export const cardioLoadLowBandWeight = 0.5;
 
 /** the reference app 0–21 → Effort 0–100 (pre-divided ratio, as noop does for bit parity). */
 export const effortFromStrainScale = (value: number): number => value * (maxStrain / strainScaleMax);
@@ -49,12 +63,14 @@ export const banisterBaselineRatePerMinute = (b: number): number =>
 
 export const banisterBaseline = (minutes: number, b: number): number => banisterBaselineRatePerMinute(b) * minutes;
 
-const banisterB = (sex: string): number => (sex.toLowerCase().startsWith("f") ? banisterBWomen : banisterBMen);
+export const banisterB = (sex: string): number => (sex.toLowerCase().startsWith("f") ? banisterBWomen : banisterBMen);
 
 /** The log-map denominator that belongs to a method. */
 export function logMapDenominator(method: StrainMethod, sex: string): number {
   if (method === "edwards") return strainDenominator;
   const b = banisterB(sex);
+  // 24 h at full reserve, less what the method's floor would credit a resting day with, plus 1 (cardio_load's floor credits nothing).
+  if (method === "cardio_load") return banisterDailyCeiling(b) + 1.0;
   return banisterDailyCeiling(b) - banisterBaseline(24.0 * 60.0, b) + 1.0;
 }
 
@@ -155,6 +171,21 @@ export function banisterTRIMP(
   return acc;
 }
 
+/**
+ * The cardio-load variant: per sample, x = %HRR/100; 0 under the floor, the kernel 0.64·x·e^(b·x) weighted by
+ * cardioLoadLowBandWeight in the low band and by 1 above it; a sample counts only when `moving(ts)` is true.
+ */
+export function cardioLoadTRIMP(hr: HrSample[], restingHR: number, hrReserve: number, durations: number[], b: number, moving: (ts: number) => boolean): number {
+  let acc = 0.0;
+  for (let i = 0; i < hr.length; i++) {
+    const x = pctHRR(hr[i].bpm, restingHR, hrReserve) / 100.0;
+    if (x < cardioLoadFloorHRR || !moving(hr[i].ts)) continue;
+    const w = x < cardioLoadLowBandTop ? cardioLoadLowBandWeight : 1.0;
+    acc += durations[i] * w * x * banisterScale * Math.exp(b * x);
+  }
+  return acc;
+}
+
 /** 100 × ln(TRIMP + 1) / ln(D), rounded to 2 dp. TRIMP ≤ 0 or D ≤ 1 gives 0. */
 export function trimpToStrain(trimp: number, denominator = strainDenominator): number {
   if (trimp <= 0) return 0.0;
@@ -176,6 +207,8 @@ export function strain(
   method: StrainMethod = "edwards",
   sex = "male",
   denominator: number | null = null,
+  /** cardio_load only: whether the person moved at that second (steps that minute, or a logged workout). */
+  moving: (ts: number) => boolean = () => true,
 ): number | null {
   const resolvedDenominator = denominator ?? logMapDenominator(method, sex);
   const effMax = maxHR ?? defaultMaxHR();
@@ -197,6 +230,8 @@ export function strain(
   const trimp =
     method === "banister"
       ? banisterTRIMP(hr, restingHR, hrReserve, durations, banisterB(sex), banisterBaselineRatePerMinute(banisterB(sex)))
-      : edwardsTRIMP(hr, restingHR, hrReserve, durations);
+      : method === "cardio_load"
+        ? cardioLoadTRIMP(hr, restingHR, hrReserve, durations, banisterB(sex), moving)
+        : edwardsTRIMP(hr, restingHR, hrReserve, durations);
   return trimpToStrain(trimp, resolvedDenominator);
 }

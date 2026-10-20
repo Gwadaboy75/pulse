@@ -20,6 +20,7 @@ const base: SettingsVM = {
     { key: "steps", label: "Steps", lastSuccessAt: null, status: "error", error: "HTTP 429" },
   ],
   profile: { birthDate: "1990-01-01", age: 36, sex: "male", maxHr: 186, maxHrSource: "estimated", timeZone: "Asia/Kolkata", heightCm: null },
+  calc: { strainMethod: "edwards", rmrEquation: "mifflin1990", activityLevel: "low_active", phenoageVariant: "original", hrvReferenceMethod: "ewma", hrvReferenceDays: 60 },
   version: "0.1.0",
   scoringVersion: 2,
 }

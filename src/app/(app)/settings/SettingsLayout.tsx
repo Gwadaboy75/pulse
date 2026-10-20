@@ -1,19 +1,20 @@
 "use client"
 
 import * as React from "react"
-import { Palette, PanelLeftClose, PanelLeftOpen, Plug, UserRound, BotMessageSquare } from "lucide-react"
+import { Calculator, Palette, PanelLeftClose, PanelLeftOpen, Plug, UserRound, BotMessageSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { GLASS } from "@/components/shells/AppNav"
 import { panelStore } from "@/components/shells/panelStore"
 import { Button } from "@/components/ui/button"
 
-export type SectionId = "account" | "source" | "app" | "coach"
+export type SectionId = "account" | "source" | "app" | "calc" | "coach"
 export type SettingsSection = { id: SectionId; label: string; node: React.ReactNode }
 
 const ICON: Record<SectionId, React.ComponentType<{ "aria-hidden"?: boolean; strokeWidth?: number; className?: string }>> = {
   account: UserRound,
   source: Plug,
   app: Palette,
+  calc: Calculator,
   coach: BotMessageSquare,
 }
 /** Older names: ?s=sync, ?s=appearance, ?s=profile. */

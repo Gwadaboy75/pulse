@@ -3,6 +3,7 @@ import type { ReasonCode } from "@/lib/reasons";
 import type { ChargeDriver } from "@/core/scoring/drivers";
 import type { RecoveryForecast } from "@/core/scoring/forecast";
 import type { HrRecoveryResult } from "@/core/scoring/hrRecovery";
+import type { StrainMethod } from "@/core/scoring/strain";
 import type { BaselineState } from "@/core/scoring/types";
 import type { Drain } from "@/core/algorithms/energyBank";
 import type { FitnessCategory } from "@/core/algorithms/fitnessLevel";
@@ -23,15 +24,22 @@ import type { StrainTarget } from "@/core/algorithms/strainTarget";
  * display zones on heart-rate reserve (Strain's and WHOOP's 50/60/70/80/90%) in place of Google's four. 8: max HR
  * no longer from Google's PEAK zone (a flat 220), so zones and Strain use the person's own or Tanaka's.
  * 10: each Healthspan factor keeps its 30-day mean beside the 6-month one (health-whoop-age-sleep-factors's two markers).
+ * 11: Strain's TRIMP method is the person's choice (calc_settings; Edwards by default, unchanged), stage 1 keys on it and on
+ * the profile's sex (Banister's exponent), and the stage-2 checkpoint on the method.
  */
-export const SCORING_VERSION = 10;
+export const SCORING_VERSION = 11;
 
 export type PipelineOptions = {
   /** Whose data: every read and write is scoped to this user. */
   userId: number;
   timeZone: string;
   profile: { birthDate: string; sex: "male" | "female"; maxHr: number; heightCm?: number | null };
+  /** The person's calculation choices that change scores (src/server/calc.ts); absent means every default. */
+  calc?: { strainMethod: StrainMethod };
 };
+
+/** The Strain method the options name, Edwards when none. */
+export const strainMethodOf = (opts: PipelineOptions): StrainMethod => opts.calc?.strainMethod ?? "edwards";
 
 export type BaselineSummary = { mean: number; sd: number; status: BaselineState["status"]; nValid: number } | null;
 

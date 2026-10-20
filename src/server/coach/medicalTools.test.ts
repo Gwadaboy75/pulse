@@ -62,7 +62,7 @@ describe("medicalTools", () => {
 
   it("is part of the coach's tool set, documented, and its writes wait for approval", () => {
     const tools = coachTools(ctxFor(undefined as never));
-    for (const name of ["get_medications", "get_lab_results", "get_documents", "search_documents", "get_appointments", ...MEDICAL_WRITE_TOOLS]) {
+    for (const name of ["get_medications", "get_lab_results", "get_documents", "search_documents", "get_appointments", "get_blood_age", ...MEDICAL_WRITE_TOOLS]) {
       expect(tools, name).toHaveProperty(name);
       expect(TOOL_DOCS, name).toHaveProperty(name);
     }

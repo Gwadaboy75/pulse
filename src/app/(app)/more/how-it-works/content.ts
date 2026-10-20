@@ -111,6 +111,7 @@ export const SCORE_DOCS: ScoreDoc[] = [
         paragraphs: [
           "Strain needs at least 600 heart-rate readings, or 20 spread over at least 10\u00a0minutes; otherwise the day shows Not enough data. Today’s Strain is a running total until midnight. Each activity also gets its own Strain from the heart rate during it.",
           "Heart rate misses effort that barely raises it, such as heavy lifting with long rests. The zone chart and Strain use the same five zones on your heart-rate reserve (max minus resting heart rate): Zone 1 starts at resting + 50% of the reserve, then 60, 70, 80 and 90%. Below Zone 1 is not counted as a zone.",
+          "The points above are Edwards’ zone method (1993), the default. Settings › Calculs offers two others on the same log scale: Banister’s TRIMP (0.64 × x × e^(k·x) per reading, k = 1.92 for men and 1.67 for women, the one Google’s Cardio Load paper also uses), and a cardio-load variant of it that counts nothing under 30% of reserve, half between 30 and 40%, and only minutes you moved. That variant is Pulse’s own: the product’s full filters are not published. Changing the method recomputes every day.",
         ],
       },
     ],
@@ -503,7 +504,7 @@ export const SCORE_DOCS: ScoreDoc[] = [
         title: "What the bands mean",
         rows: [
           { term: "Below 0.80", detail: "Undertrained (Detraining on Fitness): load dropped below your usual." },
-          { term: "0.80-1.29", detail: "Balanced (Optimal): the usual sweet spot." },
+          { term: "0.80-1.29", detail: "Balanced (Optimal): recent load matches your usual." },
           { term: "1.30-1.49", detail: "Overreaching (Pushing): load is rising faster than you are used to." },
           { term: "1.50 and up", detail: "Overreaching (High risk): load jumped well above your usual." },
         ],
@@ -520,7 +521,7 @@ export const SCORE_DOCS: ScoreDoc[] = [
       {
         title: "Limits",
         paragraphs: [
-          "Training load needs 14\u00a0days of Strain; until there are 28, your usual is the average of the days you have. It compares you with yourself, so it says nothing about whether your usual load suits your goals. The 0.8-1.3 sweet spot comes from team-sport injury research (Gabbett 2016) and is a rule of thumb.",
+          "Training load needs 14\u00a0days of Strain; until there are 28, your usual is the average of the days you have. It compares you with yourself, so it says nothing about whether your usual load suits your goals. The 0.8-1.3 band is a convention from team-sport research (Gabbett 2016) that later work found neither predicts nor prevents injury (Impellizzeri 2020): read the ratio as a description of how your load moved, never as a safe window.",
         ],
       },
     ],
@@ -585,7 +586,7 @@ export const SCORE_DOCS: ScoreDoc[] = [
       {
         title: "How it is weighted",
         paragraphs: [
-          "Pulse splits the last 7 noon-to-noon days into minutes, each asleep or awake, and checks each minute against the same minute the next day. The Sleep Regularity Index (Phillips 2017) is −100 + 200 × the share that match: 100 means an identical schedule, around 0 a random one. Pulse shows it from 0 to 100%, with anything below zero as 0%. A 1-hour nap lowers it by about 3\u00a0points.",
+          "Pulse splits the last 7 noon-to-noon days into minutes, each asleep or awake, and checks each minute against the same minute the next day. The Sleep Regularity Index (Phillips 2017) is −100 + 200 × the share that match, so its own scale runs from −100 to 100: 100 means an identical schedule, around 0 a random one, and negative values an inverted one. Pulse's Consistency is a recut of it to 0-100%, with anything below zero shown as 0%; a regular schedule says nothing about whether the sleep was enough. A 1-hour nap lowers it by about 3\u00a0points.",
           "It makes up 10% of Sleep Performance and is one of the inputs to Pulse Age.",
         ],
       },

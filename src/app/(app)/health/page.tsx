@@ -16,6 +16,7 @@ import { MetricState } from "@/components/shells/MetricState"
 import { PageShell } from "@/components/shells/PageShell"
 import { SectionShell } from "@/components/shells/SectionShell"
 import { Skeleton } from "@/components/ui/skeleton"
+import { COPY } from "../_lib/formulas.copy"
 import { categoryTone, categoryWord, ordinal } from "./format"
 import { LastReading } from "./heart-rate/LiveHeartRate"
 
@@ -278,9 +279,48 @@ export default async function HealthPage() {
         <SectionShell variant="card" level={2} title="Heart rate" href="/health/heart-rate">
           <HeartRate hr={vm.heartRate} />
         </SectionShell>
+        <SectionShell variant="card" level={2} title={COPY.hrv.title} info={false} href="/health/hrv">
+          <HrvCard m={vm.hrv} />
+        </SectionShell>
+        <SectionShell variant="card" level={2} title={COPY.energy.title} info={false} href="/health/energy">
+          <EnergyCard m={vm.energy} />
+        </SectionShell>
       </HealthCards>
       <p className={cn(CAPTION, "text-center")}>Estimates for personal insight, not medical advice.</p>
     </PageShell>
+  )
+}
+
+/** The fork's HRV card: the latest night and where it sits against the chosen reference (French, as the HRV screen). */
+function HrvCard({ m }: { m: HealthHubVM["hrv"] }) {
+  const c = COPY.hrv
+  const WORD = { in: { tone: "optimal" as const, text: c.inBand }, above: { tone: "neutral" as const, text: c.above }, below: { tone: "warning" as const, text: c.below } }
+  return (
+    <MetricState metric={m} skeleton={skeleton} renderReason={() => <p className={EMPTY}>{c.noHrv}</p>}>
+      {(v) => (
+        <div className="space-y-1">
+          <ValueUnit value={formatValue("decimal1", v.ms)} unit={c.ms} className={cn(TILE, "block")} />
+          <p className={LABEL}>{c.latest}</p>
+          {v.position && <StatusChip tone={WORD[v.position].tone}>{WORD[v.position].text}</StatusChip>}
+        </div>
+      )}
+    </MetricState>
+  )
+}
+
+/** The fork's Énergie card: the resting rate by the chosen equation. */
+function EnergyCard({ m }: { m: HealthHubVM["energy"] }) {
+  const c = COPY.energy
+  return (
+    <MetricState metric={m} skeleton={skeleton} renderReason={() => <p className={EMPTY}>{c.noWeight}</p>}>
+      {(v) => (
+        <div className="space-y-1">
+          <ValueUnit value={v.rmr.toLocaleString("fr-FR")} unit={c.kcal} className={cn(TILE, "block")} />
+          <p className={LABEL}>{c.rmr}</p>
+          <p className={CAPTION}>{c.rmrCaption(v.equationName)}</p>
+        </div>
+      )}
+    </MetricState>
   )
 }
 

@@ -8,6 +8,7 @@ import type { Db } from "../src/server/db";
 import * as schema from "../src/server/db/schema";
 import { seedPull, DEMO_PROFILE } from "../src/server/sources/seed/generate";
 import { recompute } from "../src/server/pipeline";
+import { CALC_DEFAULTS } from "../src/server/calc";
 import type { QueryCtx } from "../src/server/queries/common";
 import { coachInstructions } from "../src/server/coach/instructions";
 import { coachHistory } from "../src/server/coach/history";
@@ -32,7 +33,7 @@ const profile = { ...DEMO_PROFILE, maxHr: 183, maxHrSource: "set" as const, heig
 const now = Date.parse("2026-10-02T14:00:00+05:30") / 1000;
 await seedPull(db, { userId: 1, now, timeZone: profile.timeZone, maxHr: profile.maxHr });
 await recompute(db, { userId: 1, profile, timeZone: profile.timeZone });
-const base: QueryCtx = { db, userId: 1, profile, timeZone: profile.timeZone, mode: "demo", now };
+const base: QueryCtx = { db, userId: 1, profile, timeZone: profile.timeZone, calc: CALC_DEFAULTS, mode: "demo", now };
 const [today] = await db.select().from(schema.dailyScores).where(eq(schema.dailyScores.day, "2026-10-02"));
 const scenarios = [
   { name: "recovery-drop", question: "Why did my Recovery drop, and what should I do today?", tools: ["get_day", "get_sleep"], userId: 1 },

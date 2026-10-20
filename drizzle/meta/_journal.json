@@ -85,6 +85,13 @@
       "when": 1792522300066,
       "tag": "0011_medical_records",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792527961710,
+      "tag": "0012_calc_settings_activity_feedback",
+      "breakpoints": true
     }
   ]
 }

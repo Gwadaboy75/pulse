@@ -4,6 +4,9 @@ import {
   banisterBMen,
   banisterBWomen,
   banisterDailyCeiling,
+  banisterTRIMP,
+  cardioLoadLowBandWeight,
+  cardioLoadTRIMP,
   edwardsTRIMP,
   effectiveEffort,
   effortFromStrainScale,
@@ -16,6 +19,7 @@ import {
   percentile,
   sampleDurationsMinutes,
   strain,
+  STRAIN_METHODS,
   strainDenominator,
   toStrainScale,
   trimpToStrain,
@@ -168,6 +172,41 @@ describe("StrainBanisterDenominatorTest", () => {
     const walkBa = strain(walking, max, rest, "banister")!;
     expect(walkEd).toBeGreaterThan(liftEd);
     expect(liftBa / walkBa).toBeGreaterThan(liftEd / walkEd);
+  });
+
+  it("TRIMP kernels on 30 min at 60% of reserve: the audit's figures", () => {
+    // Σ minutes × x × a × e^(b·x): 36.455 (0.64 / 1.92), 42.163 (0.86 / 1.67, the usual female variant, not offered), 31.377 (0.64 / 1.67).
+    const h = 0.6;
+    expect(30 * h * 0.64 * Math.exp(1.92 * h)).toBeCloseTo(36.455, 3);
+    expect(30 * h * 0.86 * Math.exp(1.67 * h)).toBeCloseTo(42.163, 3);
+    expect(30 * h * 0.64 * Math.exp(1.67 * h)).toBeCloseTo(31.377, 3);
+    const rest = 60;
+    const max = 190;
+    const thirty = every(Math.round(rest + (max - rest) * h), 1800);
+    const durations = sampleDurationsMinutes(thirty);
+    expect(cardioLoadTRIMP(thirty, rest, max - rest, durations, banisterBMen, () => true)).toBeCloseTo(36.455, 1);
+    expect(cardioLoadTRIMP(thirty, rest, max - rest, durations, banisterBWomen, () => true)).toBeCloseTo(31.377, 1);
+  });
+
+  it("the cardio-load variant: nothing under 30% of reserve, half weight to 40%, and only while moving", () => {
+    const rest = 60;
+    const max = 190;
+    const bpm = (pct: number) => Math.round(rest + ((max - rest) * pct) / 100);
+    const durations = sampleDurationsMinutes(every(100, 600));
+    expect(cardioLoadTRIMP(every(bpm(25), 600), rest, max - rest, durations, banisterBMen, () => true)).toBe(0);
+    const low = cardioLoadTRIMP(every(bpm(35), 600), rest, max - rest, durations, banisterBMen, () => true);
+    const full = banisterTRIMP(every(bpm(35), 600), rest, max - rest, durations, banisterBMen);
+    expect(low).toBeCloseTo(full * cardioLoadLowBandWeight, 9);
+    expect(cardioLoadTRIMP(every(bpm(70), 600), rest, max - rest, durations, banisterBMen, () => false)).toBe(0);
+    expect(cardioLoadTRIMP(every(bpm(70), 600), rest, max - rest, durations, banisterBMen, (ts) => ts < 300)).toBeCloseTo(
+      banisterTRIMP(every(bpm(70), 300), rest, max - rest, sampleDurationsMinutes(every(100, 300)), banisterBMen),
+      6,
+    );
+    // Through strain(): a still tachycardia scores 0, a run scores.
+    expect(strain(every(bpm(70), 3600), max, rest, "cardio_load", "male", null, () => false)).toBe(0);
+    expect(strain(every(bpm(70), 3600), max, rest, "cardio_load", "male")!).toBeGreaterThan(30);
+    expect(logMapDenominator("cardio_load", "male")).toBeCloseTo(banisterDailyCeiling(banisterBMen) + 1, EPS);
+    expect(STRAIN_METHODS).toEqual(["edwards", "banister", "cardio_load"]);
   });
 
   it("a session below the 50% floor scores nothing under Edwards", () => {

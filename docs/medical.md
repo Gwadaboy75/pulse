@@ -37,6 +37,16 @@ Analytes are keyed by a stable English `snake_case` key the model assigns (`hemo
 so the same test lines up across labs that print it differently; results typed by hand are keyed from their label.
 A result's flag is the printed one, else low / normal / high against the printed range.
 
+## Blood age and derived calculators
+
+`/medical/bloodage` computes the clinical **PhenoAge** (Levine 2018) from the latest result of each of its nine
+markers on file, converted to the model's units with every conversion shown, and `/medical/labs` shows the derived
+calculators whose inputs exist (CKD-EPI 2021 eGFR, non-HDL, TyG, HOMA-IR). A marker in an unknown unit is missing,
+never guessed; a "< x" result is taken as half the limit, and the rule is shown. The formula, the two published
+denominators (0.090165 by default, the 2019 erratum's 0.09165 as a named variant in Settings › Calculs) and the
+aliases are in [formulas.md](formulas.md). The coach reads it through `get_blood_age`, as a group-level estimate,
+never merged with Pulse Age.
+
 ## The coach
 
 Five read tools (`get_medications`, `get_lab_results`, `get_documents`, `search_documents`, `get_appointments`) and

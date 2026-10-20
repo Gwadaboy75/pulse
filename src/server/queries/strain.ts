@@ -1,5 +1,6 @@
 import { type ExtraKey, extraMetric } from "@/lib/extraMetrics";
 import { metricHref, trendHref } from "@/lib/url";
+import { getFeedback, perceivedLoad } from "../feedback";
 import { addDays } from "../time";
 import {
   activityItem,
@@ -41,6 +42,8 @@ export async function getStrain(day: string, ctx: QueryCtx): Promise<StrainVM> {
     exercisesBetween(ctx, addDays(day, -59), day),
     loadSeries(ctx, day, "hr"),
   ]);
+  const week = exs.filter((e) => e.day >= addDays(day, -6));
+  const perceivedResult = perceivedLoad(day, week, await getFeedback(ctx.db, ctx.userId, week.map((e) => e.id)));
   const row = rows.get(day);
   const strain = strainMetric(row);
   const t = row?.strainTarget;
@@ -90,6 +93,7 @@ export async function getStrain(day: string, ctx: QueryCtx): Promise<StrainVM> {
     maxHr: row?.s1?.maxHr ?? ctx.profile.maxHr,
     zoneNote: zoneNote(row, ctx),
     activities: exs.filter((e) => e.day === day).map((e) => activityItem(e, row)).sort((a, b) => b.start - a.start),
+    perceived: { metric: perceivedResult.value ? ok(perceivedResult.value) : none("no_data"), notes: perceivedResult.notes },
   };
 }
 

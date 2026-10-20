@@ -1,6 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { zoneShareRanges } from "@/core/algorithms/zoneTypical";
 import { exercises } from "../db/schema";
+import { getFeedback } from "../feedback";
+import { sessionRpe } from "@/core/formulas/sessionLoad";
 import { readSamples } from "../samples";
 import { addDays } from "../time";
 import {
@@ -36,11 +38,14 @@ export async function getActivity(id: string, ctx: QueryCtx): Promise<ActivityVM
   const kind = activityKind(e.type);
   // Steps inside the workout for the kinds that walk or run (activity-running-detail-top), and the same for earlier ones of that kind.
   const stepping = kind === "run" || kind === "walk";
-  const [rows, recent, series] = await Promise.all([
+  const [rows, recent, series, feedbackRows] = await Promise.all([
     loadDays(ctx, addDays(e.day, -30), e.day),
     exercisesBetween(ctx, addDays(e.day, -30), e.day),
     loadSeries(ctx, e.day, "hr"),
+    getFeedback(ctx.db, ctx.userId, [id]),
   ]);
+  const fb = feedbackRows.get(id) ?? { rpe: null, note: null };
+  const minutes = Math.round((e.endTs - e.startTs) / 60);
   const row = rows.get(e.day);
   const a = row?.activities.find((x) => x.id === id);
   const reason = a && a.hrCount > 0 ? "insufficient_hr_data" : hrReason(row?.s1 ?? null);
@@ -103,6 +108,7 @@ export async function getActivity(id: string, ctx: QueryCtx): Promise<ActivityVM
     maxHr: row?.s1?.maxHr ?? ctx.profile.maxHr,
     zoneNote: zoneNote(row, ctx),
     hrr,
+    feedback: { rpe: fb.rpe, note: fb.note, minutes, load: fb.rpe == null ? null : Math.round(sessionRpe(minutes, fb.rpe)) },
   };
 }
 

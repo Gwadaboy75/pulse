@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { connection } from "next/server"
-import { CalendarClock, FileText, FlaskConical, Pill } from "lucide-react"
+import { CalendarClock, FileText, FlaskConical, Hourglass, Pill } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { userCtx } from "@/server/queries/common"
 import { getMedicalHub } from "@/server/queries/medical"
@@ -29,6 +29,7 @@ export default async function MedicalPage() {
     { icon: Pill, label: c.sections.medications, href: "/medical/medications", aside: vm.counts.medications ? String(vm.counts.medications) : undefined },
     { icon: FileText, label: c.sections.documents, href: "/medical/documents", aside: vm.pendingReview ? c.pendingReview(vm.pendingReview) : vm.counts.documents ? String(vm.counts.documents) : undefined },
     { icon: CalendarClock, label: c.sections.appointments, href: "/medical/appointments", aside: vm.counts.appointments ? String(vm.counts.appointments) : undefined },
+    { icon: Hourglass, label: COPY.bloodAge.hubLabel, href: "/medical/bloodage" },
   ]
   return (
     <PageShell title={c.title}>

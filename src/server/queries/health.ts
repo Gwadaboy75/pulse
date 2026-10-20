@@ -13,6 +13,8 @@ import { dailyMetrics, dailyScores, dailyValues, healthRecords } from "../db/sch
 import { minuteMeanHr } from "@/core/algorithms/stress";
 import { readHr, sampleRange } from "../samples";
 import { addDays, daysBetween, fractionalYears, localMidnight, wall } from "../time";
+import { getEnergy } from "./energy";
+import { getHrvPanel } from "./hrv";
 import { zoneBounds, zoneNote, zoneRows } from "./strain";
 import { illnessRaised, VITAL_LABEL } from "./home";
 import {
@@ -68,12 +70,14 @@ export async function getHealthHub(ctx: QueryCtx): Promise<HealthHubVM> {
   const today = todayOf(ctx);
   const rows = await loadDays(ctx, addDays(today, -35), today);
   const row = rows.get(today);
-  const [hsVm, monitor, fit, stressSeries, heartRate] = await Promise.all([
+  const [hsVm, monitor, fit, stressSeries, heartRate, energy, hrv] = await Promise.all([
     getHealthspan(today, ctx),
     getMonitor(today, ctx, rows),
     getFitness(ctx),
     loadSeries(ctx, today, "stress"),
     latestHr(ctx),
+    getEnergy(ctx),
+    getHrvPanel(ctx),
   ]);
   const hs = hsVm.result;
   // Healthspan updates weekly: compare the shown week's pace with the stored week before it.
@@ -105,6 +109,8 @@ export async function getHealthHub(ctx: QueryCtx): Promise<HealthHubVM> {
       ? ok({ vo2max: fit.vo2.value.value, category: fit.vo2.value.category, percentile: fit.vo2.value.percentile, acwr: tl?.acwr ?? null, acwrTone: tl?.tone ?? null })
       : none("no_data"),
     heartRate,
+    energy: energy.rmr.value ? ok({ rmr: energy.rmr.value.value as number, equationName: energy.equationName }) : none("no_data"),
+    hrv: hrv.panel.value?.latest ? ok({ ms: hrv.panel.value.latest.ms, day: hrv.panel.value.latest.day, position: hrv.position }) : none(hrv.panel.reason ?? "no_data"),
   };
 }
 

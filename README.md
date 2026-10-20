@@ -46,6 +46,7 @@ phone, from Health Connect.
 - **Médical**, a fifth tab for your own medical file: lab results with their reference ranges and trends, medications and the doses you take, documents (prescriptions, blood tests) read by your coach's model and confirmed by you, appointments ([docs/medical.md](docs/medical.md)).
 - The **coach** reads that file on request (and only on request), and can log a dose or add a medication after your tap.
 - A ready-made **Caddy** HTTPS overlay ([docs/other-setups.md](docs/other-setups.md#reverse-proxy-with-caddy)).
+- An **audited formula engine** ([docs/formulas.md](docs/formulas.md)): choose the Strain model (Edwards, Banister, a cardio-load variant), the resting-metabolism equation (Mifflin, Harris-Benedict, Henry, ten Haaf…), the PhenoAge variant and the HRV reference in Settings › Calculs; an Énergie screen, an HRV reference panel, a blood age from your lab results, perceived effort per workout, and a page listing every method with its version and sources.
 
 Every score is explained on the [metrics pages](https://pulse.portlabs.in/metrics/) and in [docs/algorithms](docs/algorithms).
 More screens: [docs/screenshots.md](docs/screenshots.md).

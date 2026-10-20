@@ -7,6 +7,7 @@ import { dailyMetrics, dailyScores, dailyValues, exercises, intradaySeries } fro
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { currentUser } from "../auth";
+import { type CalcSettings, getCalcSettings } from "../calc";
 import { getProfile, type Profile } from "../profile";
 import type {
   EnergyBankRow,
@@ -34,6 +35,8 @@ export type QueryCtx = {
   userId: number;
   timeZone: string;
   profile: Profile;
+  /** The person's calculation choices (Settings › Calculs). */
+  calc: CalcSettings;
   mode: "demo" | "google";
   /** Unix seconds. */
   now: number;
@@ -56,10 +59,10 @@ export const userCtx = cache(async (userId?: number): Promise<QueryCtx> => {
 /** The query context for a given user (the worker, tests). Throws `profile_missing` before onboarding. */
 export async function ctxOf(db: Db, userId: number): Promise<QueryCtx> {
   const cfg = getConfig();
-  const profile = await getProfile(db, userId);
+  const [profile, calc] = await Promise.all([getProfile(db, userId), getCalcSettings(db, userId)]);
   if (!profile) throw new Error("profile_missing");
   // `google` is the real-account mode, whether the data comes from Google or from the phone's Health Connect.
-  return { db, userId, timeZone: profile.timeZone, profile, mode: cfg.demo ? "demo" : "google", now: Math.floor(Date.now() / 1000) };
+  return { db, userId, timeZone: profile.timeZone, profile, calc, mode: cfg.demo ? "demo" : "google", now: Math.floor(Date.now() / 1000) };
 }
 
 export const todayOf = (ctx: QueryCtx) => localDay(ctx.now, ctx.timeZone);

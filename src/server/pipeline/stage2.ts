@@ -41,6 +41,7 @@ import {
   type Stage1Activity,
   type Stage1Day,
   type Stage2Row,
+  strainMethodOf,
 } from "./types";
 
 /** The checkpoint sits this many days before the newest day: sync re-lists sessions 30 days back, so older changes are rare. */
@@ -49,7 +50,7 @@ export const CHECKPOINT_LAG = 31;
 export const CHECKPOINT_STEP = 30;
 
 const inputsKey = (data: Data, opts: PipelineOptions) =>
-  JSON.stringify([data.first, opts.timeZone, opts.profile.birthDate, opts.profile.sex, opts.profile.heightCm ?? null, opts.profile.maxHr]);
+  JSON.stringify([data.first, opts.timeZone, opts.profile.birthDate, opts.profile.sex, opts.profile.heightCm ?? null, opts.profile.maxHr, strainMethodOf(opts)]);
 
 /** The stored checkpoint, when it was taken under the same version and inputs inside this history. */
 async function readCheckpoint(db: Db, data: Data, opts: PipelineOptions): Promise<{ day: string; fold: Fold } | null> {

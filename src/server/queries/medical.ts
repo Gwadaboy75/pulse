@@ -2,10 +2,14 @@
 import { and, asc, count, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { coachReady } from "../coach/store";
 import { appointments, labResults, medicalDocuments, medicationEvents, medications, practitioners } from "../db/schema";
-import { localDay, localMidnight } from "../time";
+import { egfrCkdEpi2021, homaIr, nonHdl, tyg } from "@/core/formulas/clinical";
+import { crpTenfoldYears, PHENO_MARKERS, PHENO_UNITS, phenoAge, type PhenoInputs } from "@/core/formulas/phenoage";
+import { FORMULAS } from "@/core/formulas/registry";
+import { type Marker, pickMarkers } from "../medical/analytes";
+import { addDays, fractionalYears, localDay, localMidnight } from "../time";
 import type { QueryCtx } from "./common";
-import { todayOf } from "./common";
-import type { AnalyteVM, AppointmentVM, DocumentDetailVM, DocumentVM, LabResultVM, LabTrendVM, MedicalHubVM, MedicationVM, PractitionerVM } from "./types";
+import { none, ok, todayOf } from "./common";
+import type { AnalyteVM, AppointmentVM, BloodAgeVM, ClinicalVM, DocumentDetailVM, DocumentVM, LabResultVM, LabTrendVM, MedicalHubVM, MedicationVM, PractitionerVM } from "./types";
 
 export const documentUrl = (id: string) => `/documents/${encodeURIComponent(id)}`;
 
@@ -73,6 +77,69 @@ export async function getLabTrend(ctx: QueryCtx, analyte: string): Promise<LabTr
   const latest = points.at(-1)!;
   const range = latest.refLow !== null || latest.refHigh !== null ? { low: latest.refLow, high: latest.refHigh } : null;
   return { analyte, label: latest.label, unit: latest.unit, points, range };
+}
+
+// ── Blood age and clinical calculators ───────────────────────────────────────
+
+/** A used marker older than this makes the result provisional. */
+export const MARKER_MAX_AGE_DAYS = 180;
+
+/** Âge sanguin: PhenoAge from the latest result of each of its nine markers, converted to the model's units. */
+export async function getBloodAge(ctx: QueryCtx): Promise<BloodAgeVM> {
+  const today = todayOf(ctx);
+  const all = await getLabResults(ctx);
+  const picks = pickMarkers(all);
+  const inputs: PhenoInputs = {};
+  const markers: BloodAgeVM["markers"] = [];
+  const notes: string[] = [];
+  for (const m of PHENO_MARKERS) {
+    const p = picks.get(m);
+    const converted = p?.normalized.input ?? null;
+    if (converted) inputs[m] = converted;
+    const note = p?.normalized.note ?? null;
+    if (note && !converted) notes.push(note);
+    markers.push({ marker: m, unit: PHENO_UNITS[m], result: p?.result ?? null, converted, note });
+  }
+  const age = fractionalYears(ctx.profile.birthDate, today);
+  const r = phenoAge(inputs, age, ctx.calc.phenoageVariant);
+  const used = markers.filter((m) => m.converted);
+  const drawDay = used.length ? used.map((m) => m.result!.day).sort().at(-1)! : null;
+  const stale = used.some((m) => addDays(m.result!.day, MARKER_MAX_AGE_DAYS) < today);
+  return {
+    today,
+    age: Math.floor(age),
+    variant: ctx.calc.phenoageVariant,
+    result: r.value ? ok(r.value, stale) : none("no_data"),
+    markers,
+    drawDay,
+    stale,
+    notes: [...r.notes, ...notes],
+    crpTenfoldYears: crpTenfoldYears(ctx.calc.phenoageVariant),
+  };
+}
+
+/** The clinical calculators whose inputs are on file: eGFR, non-HDL, TyG, HOMA-IR. */
+export async function getClinical(ctx: QueryCtx): Promise<ClinicalVM> {
+  const all = await getLabResults(ctx);
+  const picks = pickMarkers(all);
+  const input = (m: Marker) => picks.get(m)?.normalized.input ?? null;
+  const row = (m: Marker) => {
+    const p = picks.get(m);
+    return p ? [{ label: p.result.label, day: p.result.day, printed: `${p.result.value ?? p.result.valueText ?? "—"}${p.result.unit ? ` ${p.result.unit}` : ""}` }] : [];
+  };
+  // eGFR wants creatinine in mg/dL: back from the model's µmol/L.
+  const creat = input("creatinine");
+  const creatMgDl = creat ? { ...creat, value: Math.round((creat.value / 88.4) * 1000) / 1000, unit: "mg/dL" } : null;
+  const age = fractionalYears(ctx.profile.birthDate, todayOf(ctx));
+  const glucoseMmol = input("glucose");
+  const glucoseMgDl = glucoseMmol ? { ...glucoseMmol, value: Math.round(glucoseMmol.value * 18.018 * 100) / 100, unit: "mg/dL" } : null;
+  const candidates: ClinicalVM = [
+    { id: "clinical.egfrCkdEpi2021", name: FORMULAS["clinical.egfrCkdEpi2021"].name, result: egfrCkdEpi2021(creatMgDl, age, ctx.profile.sex), inputs: row("creatinine") },
+    { id: "clinical.nonHdl", name: FORMULAS["clinical.nonHdl"].name, result: nonHdl(input("total_cholesterol"), input("hdl")), inputs: [...row("total_cholesterol"), ...row("hdl")] },
+    { id: "clinical.tyg", name: FORMULAS["clinical.tyg"].name, result: tyg(input("triglycerides"), glucoseMgDl), inputs: [...row("triglycerides"), ...row("glucose")] },
+    { id: "clinical.homaIr", name: FORMULAS["clinical.homaIr"].name, result: homaIr(glucoseMmol, input("insulin")), inputs: [...row("glucose"), ...row("insulin")] },
+  ];
+  return candidates.filter((c) => c.result.value !== null);
 }
 
 // ── Medications ──────────────────────────────────────────────────────────────

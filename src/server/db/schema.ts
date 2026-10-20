@@ -791,6 +791,38 @@ export const appointments = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.id] }), index("appointments_starts").on(t.userId, t.startsAt)],
 );
 
+/**
+ * The person's calculation choices (src/server/calc.ts, docs/formulas.md): which Strain model stage 1 runs, which
+ * resting-metabolism equation and activity level the Énergie screen uses, the PhenoAge variant, and how the HRV panel
+ * builds its reference. One row per user; no row means every default. Not synced data: kept on a source switch.
+ */
+export const calcSettings = pgTable("calc_settings", {
+  userId: userId().primaryKey(),
+  strainMethod: text("strain_method", { enum: ["edwards", "banister", "cardio_load"] }).notNull().default("edwards"),
+  rmrEquation: text("rmr_equation").notNull().default("mifflin1990"),
+  activityLevel: text("activity_level", { enum: ["inactive", "low_active", "active", "very_active"] }).notNull().default("low_active"),
+  phenoageVariant: text("phenoage_variant", { enum: ["original", "erratum2019"] }).notNull().default("original"),
+  hrvReferenceMethod: text("hrv_reference_method", { enum: ["ewma", "mean_sd", "median_mad"] }).notNull().default("ewma"),
+  hrvReferenceDays: integer("hrv_reference_days").notNull().default(60),
+  updatedAt: ts("updated_at").notNull(),
+});
+
+/**
+ * What the person says about a workout after the fact: the perceived effort (Borg CR-10) behind the session-RPE load
+ * (src/core/formulas/sessionLoad.ts). Keyed by the exercise's id; kept out of SYNCED_TABLES so a source switch keeps it.
+ */
+export const activityFeedback = pgTable(
+  "activity_feedback",
+  {
+    userId: userId(),
+    exerciseId: text("exercise_id").notNull(),
+    rpe: real("rpe"),
+    note: text("note"),
+    updatedAt: ts("updated_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.exerciseId] })],
+);
+
 /** Tables holding a user's synced Google data and what was computed from it (cleared on a Google account switch). */
 export const SYNCED_TABLES = [
   syncState, rawPayloads, hrDays, stepsDays, dailyMetrics, sleepSegments, sleepSessions, exercises, dailyValues,

@@ -9,7 +9,7 @@ import { medicalDocuments } from "../db/schema";
 import { logDoseFor, saveMedicationFor } from "../medical/writes";
 import type { QueryCtx } from "../queries/common";
 import { todayOf } from "../queries/common";
-import { getAnalytes, getAppointments, getDocuments, getLabResults, getMedications } from "../queries/medical";
+import { getAnalytes, getAppointments, getBloodAge, getDocuments, getLabResults, getMedications } from "../queries/medical";
 import { addDays } from "../time";
 import { defaultTexts, type Texts } from "./texts";
 
@@ -106,6 +106,30 @@ export function medicalTools(ctx: QueryCtx, t: Texts = defaultTexts) {
             const x = (r.extraction ?? {}) as { summary?: unknown };
             return { id: r.id, kind: r.kind, title: r.title, day: r.day, status: r.status, summary: typeof x.summary === "string" ? x.summary.slice(0, 600) : null, notes: r.notes };
           }),
+        };
+      },
+    }),
+    get_blood_age: tool({
+      description: t("tool.get_blood_age"),
+      inputSchema: z.object({}),
+      execute: async () => {
+        const vm = await getBloodAge(ctx);
+        const r = vm.result.value;
+        return {
+          today: vm.today,
+          chronologicalAge: vm.age,
+          variant: vm.variant,
+          phenoAge: r ? r.phenoAge : null,
+          simpleDelta: r ? r.delta : null,
+          provisional: vm.result.provisional,
+          drawDay: vm.drawDay,
+          markers: vm.markers.map((m) => ({
+            marker: m.marker,
+            modelUnit: m.unit,
+            used: m.converted ? { value: round(m.converted.value, 4), unit: m.converted.unit, day: m.converted.day, printed: m.converted.from ?? null, rule: m.converted.rule ?? null } : null,
+            missingWhy: m.converted ? null : (m.note ?? "no result on file"),
+          })),
+          notes: vm.notes,
         };
       },
     }),

@@ -13,7 +13,7 @@ import { timeInZone, zones as hrZones } from "@/core/scoring/zones";
 import { minuteLoad } from "@/core/algorithms/energyBank";
 import { minuteMeanHr, stress } from "@/core/algorithms/stress";
 import { BATCH_DAYS, type Data, type Exercise, r1, round, type Session, sha, touching, upsertSeries } from "./data";
-import { type PipelineOptions, SCORING_VERSION, type Stage1Activity, type Stage1Day } from "./types";
+import { type PipelineOptions, SCORING_VERSION, type Stage1Activity, type Stage1Day, strainMethodOf } from "./types";
 
 /** A baseline whose centre is set, so stress() scores every still minute; only the still mask is kept. */
 const MASK_BASELINE: BaselineState = { baseline: 0, spread: 1, nValid: 1, nightsSinceUpdate: 0, status: "calibrating" };
@@ -27,6 +27,8 @@ function stage1Key(data: Data, day: string, opts: PipelineOptions) {
       SCORING_VERSION,
       opts.timeZone, // the day's bounds come from it
       opts.profile.maxHr,
+      strainMethodOf(opts),
+      opts.profile.sex, // Banister's exponent
       data.metrics.get(day)?.rhrBpm ?? null,
       main ? [main.id, main.startTs, main.endTs] : null,
       touching(data.sessions, lo, hi).map((s) => [s.id, s.startTs, s.endTs, s.isMain]),
@@ -144,6 +146,16 @@ function stage1Day(
   }));
   const probe = stress({ start, end, hr: dayHr, steps, excluded, baseline: MASK_BASELINE });
   const still = probe.minutes.map((v, m) => (v == null ? null : means[m]));
+  // The Strain method the person chose; cardio_load credits a second only when it moved: steps in that minute, or
+  // inside a logged workout (a workout without steps, like a ride, still counts).
+  const method = strainMethodOf(opts);
+  const sex = opts.profile.sex;
+  const moving = (ts: number): boolean => {
+    const m = Math.floor((ts - start) / 60);
+    if (m >= 0 && m < n && steps[m] > 0) return true;
+    return exs.some((e) => ts >= e.startTs && ts <= e.endTs);
+  };
+  const effortOf = (xs: HrSample[]) => strain(xs, maxHr, restingHr, method, sex, null, moving);
   const noon = Math.min(n, 720);
   const withHr = (from: number, to: number) => means.slice(from, to).filter((v) => v != null).length;
 
@@ -156,7 +168,7 @@ function stage1Day(
     restingHr,
     restingHrSource: dailyRhr != null ? "daily" : sessionRhr != null ? "session" : "default",
     maxHr,
-    effort: strain(dayHr, maxHr, restingHr),
+    effort: effortOf(dayHr),
     zoneLower: zoneSet.zones.map((z) => round(z.lower, 1)),
     zoneSeconds: dayTiz.seconds,
     zoneBelowSeconds: dayTiz.belowZone1,
@@ -168,7 +180,7 @@ function stage1Day(
     const actTiz = tiz(xs);
     return {
       id: e.id,
-      effort: strain(xs, maxHr, restingHr),
+      effort: effortOf(xs),
       hrCount: xs.length,
       avgHr: xs.length ? round(xs.reduce((a, s) => a + s.bpm, 0) / xs.length, 1) : null,
       maxHr: xs.length ? Math.max(...xs.map((s) => s.bpm)) : null,

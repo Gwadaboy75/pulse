@@ -5,6 +5,12 @@ import type { BehaviorChip } from "@/core/algorithms/behaviorChips";
 // Conventions: instants are epoch **milliseconds** (as the kit's charts and cards take them), days are
 // local `YYYY-MM-DD`, Strain is on the reference app's 0–21 scale, and no number is ever NaN or ±Infinity.
 import type { DashboardKey } from "@/lib/dashboard";
+import type { ActivityLevel, RmrEquation } from "@/core/formulas/metabolism";
+import type { HrvPanel, HrvPoint } from "@/core/formulas/hrvReference";
+import type { WeeklyLoad } from "@/core/formulas/sessionLoad";
+import type { FormulaId, FormulaInput, FormulaResult } from "@/core/formulas/types";
+import type { PhenoAge, PhenoMarker, PhenoVariant } from "@/core/formulas/phenoage";
+import type { CalcSettings } from "../calc";
 import type { FormatKey } from "@/lib/format";
 
 import type { ChipTone, GoodDirection, RecoveryBand as Band, StressLevel } from "@/lib/bands";
@@ -212,6 +218,8 @@ export type StrainVM = {
   /** How the zones are set: five on heart-rate reserve from the day's resting and max heart rate. */
   zoneNote: string;
   activities: ActivityItem[];
+  /** Perceived load over the 7 days ending on the day (src/server/feedback.ts); no_data until a session is rated. */
+  perceived: { metric: Metric<WeeklyLoad>; notes: string[] };
 };
 
 export type ActivityVM = {
@@ -236,6 +244,8 @@ export type ActivityVM = {
   /** How the zones are set: five on heart-rate reserve from the day's resting and max heart rate. */
   zoneNote: string;
   hrr: Metric<{ value: number; tone: ChipTone; label: "Good" | "Typical" | "Low" }>;
+  /** The person's rating of this workout (Borg CR-10) and the session-RPE load it gives (minutes × RPE). */
+  feedback: { rpe: number | null; note: string | null; minutes: number; load: number | null };
 };
 
 // ── Sleep ────────────────────────────────────────────────────────────────────
@@ -322,6 +332,10 @@ export type HealthHubVM = {
   fitness: Metric<{ vo2max: number; category: string; percentile: number; acwr: number | null; acwrTone: ChipTone | null }>;
   /** The newest band reading (epoch ms), today or not. */
   heartRate: { t: number; bpm: number } | null;
+  /** Énergie: the resting rate by the chosen equation (src/server/queries/energy.ts). */
+  energy: Metric<{ rmr: number; equationName: string }>;
+  /** HRV: the latest night against the chosen reference (src/server/queries/hrv.ts). */
+  hrv: Metric<{ ms: number; day: string; position: "in" | "above" | "below" | null }>;
 };
 
 /** Minute-mean heart rate (`t` epoch ms, a null minute is a gap) and the newest sample; the live route's answer too. */
@@ -441,6 +455,42 @@ export type FitnessVM = {
   /** 90 days of CTL ("Fitness"), ATL ("Fatigue") and TSB ("Form"). */
   load: { day: string; ctl: number | null; atl: number | null; tsb: number | null }[];
   loadReason: { reason: ReasonCode; nightsLeft?: number } | null;
+};
+
+/** Énergie `/health/energy` (src/server/queries/energy.ts). */
+export type EnergyVM = {
+  day: string;
+  inputs: {
+    weight: { value: number; day: string } | null;
+    bodyFat: { value: number; day: string } | null;
+    /** Fat-free mass from the latest weight and a body-fat reading under 90 days old. */
+    ffmKg: number | null;
+    ffmStale: boolean;
+    heightCm: number | null;
+    age: number;
+    sex: "male" | "female";
+  };
+  equation: RmrEquation;
+  equationName: string;
+  rmr: Metric<FormulaResult>;
+  /** Every equation on the same inputs, the chosen one marked. */
+  comparison: { equation: RmrEquation; name: string; value: number | null; notes: string[]; missing: string[]; inUse: boolean }[];
+  tdee: { level: ActivityLevel; pal: Metric<FormulaResult>; eer: Metric<FormulaResult> };
+  metabolicAge: Metric<FormulaResult>;
+  /** The wearable's own daily calories (an estimate of the manufacturer's), shown apart. */
+  wearable: { today: number | null; mean7: number | null };
+  levels: readonly ActivityLevel[];
+};
+
+/** HRV `/health/hrv` (src/server/queries/hrv.ts). */
+export type HrvVM = {
+  day: string;
+  panel: Metric<HrvPanel>;
+  /** The latest night's place against its band, from the panel's z. */
+  position: "in" | "above" | "below" | null;
+  points: HrvPoint[];
+  notes: string[];
+  coverage: { have: number; need: number } | null;
 };
 
 // ── Journal ──────────────────────────────────────────────────────────────────
@@ -605,6 +655,32 @@ export type MedicalHubVM = {
   counts: { documents: number; analytes: number; medications: number; appointments: number };
 };
 
+/** Médical › Âge sanguin `/medical/bloodage` (src/server/queries/medical.ts getBloodAge). */
+export type BloodAgeVM = {
+  today: string;
+  age: number;
+  variant: PhenoVariant;
+  result: Metric<PhenoAge>;
+  /** One row per PhenoAge marker, in the model's order: the result used (as printed and converted) or why it is missing. */
+  markers: {
+    marker: PhenoMarker;
+    unit: string;
+    result: LabResultVM | null;
+    converted: FormulaInput | null;
+    note: string | null;
+  }[];
+  /** The day of the most recent marker; markers from other days are listed with their own day. */
+  drawDay: string | null;
+  /** True when a used marker is older than 180 days. */
+  stale: boolean;
+  notes: string[];
+  /** Years a 10× CRP entry error would add, for the sensitivity note. */
+  crpTenfoldYears: number;
+};
+
+/** The derived clinical calculators on the labs screen, those whose inputs exist. */
+export type ClinicalVM = { id: FormulaId; name: string; result: FormulaResult; inputs: { label: string; day: string; printed: string }[] }[];
+
 /** Settings › Data source › the phone (Life Dashboard Companion posting Health Connect to this server). */
 export type HealthConnectVM = {
   /** The webhook URL the phone posts to; null until APP_URL is set on the server. */
@@ -634,6 +710,8 @@ export type SettingsVM = {
   import: { done: number; total: number } | null;
   sync: { key: string; label: string; lastSuccessAt: number | null; status: "ok" | "stale" | "error" | "never"; error: string | null }[];
   profile: { birthDate: string; age: number; sex: "male" | "female"; maxHr: number; maxHrSource: "set" | "estimated"; timeZone: string; heightCm: number | null };
+  /** Settings › Calculs (src/server/calc.ts). */
+  calc: CalcSettings;
   version: string;
   scoringVersion: number;
 };

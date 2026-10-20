@@ -18,8 +18,10 @@ import { coachReady } from "@/server/coach/store"
 import { getActivity } from "@/server/queries/activity"
 import { todayOf, userCtx } from "@/server/queries/common"
 import type { ActivityVM } from "@/server/queries/types"
+import { COPY } from "../../_lib/formulas.copy"
 import { CAPTION, hrSeries, statProps } from "../../_lib/view"
 import { ActivityMenu } from "./ActivityMenu"
+import { RpeSheet } from "./RpeSheet"
 import { CoachGlance } from "./CoachGlance"
 import { WorkoutBanner } from "./WorkoutBanner"
 
@@ -53,6 +55,11 @@ export default async function ActivityPage({ params }: PageProps<"/activity/[id]
         <div className="w-full space-y-6">
           {FEATURES.strengthTrainer && vm.kind === "strength" && <WorkoutBanner />}
           <Hero vm={vm} />
+          {/* The fork's perceived effort (docs/formulas.md): the person's own rating, kept beside the heart-rate strain, never mixed into it. */}
+          <div className="flex flex-wrap items-center gap-3">
+            <RpeSheet exerciseId={vm.id} rpe={vm.feedback.rpe} note={vm.feedback.note} minutes={vm.feedback.minutes} />
+            {vm.feedback.load != null && <span className={CAPTION}>{COPY.rpe.load(vm.feedback.load)}</span>}
+          </div>
         </div>
       }
       // the reference app draws the heart rate and the zone rows on the ground, not in cards [latest-activity-1].

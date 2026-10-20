@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { GoogleFit } from "@/components/brand/GoogleFit"
 import { Mark } from "@/components/brand/Mark"
+import { COPY } from "../_lib/formulas.copy"
 import { AppSettings, SignOutForm } from "./AppSettings"
+import { CalcSettings } from "./CalcSettings"
 import { HealthConnect } from "./HealthConnect"
 import { AvatarButtons, ChangePasswordButton, DeleteAccountButton, DisconnectButton, EditProfileButton, SwitchGoogleButton, ThemePicker } from "./SettingsClient"
 import { SettingsLayout, type SettingsSection } from "./SettingsLayout"
@@ -320,6 +322,7 @@ export function SettingsView({ vm, now, account, coach, pushKey = null, initial 
         </>
       ),
     },
+    { id: "calc", label: COPY.calc.section, node: <CalcSettings calc={vm.calc} profileSex={vm.profile.sex} /> },
     ...(coach ? [{ id: "coach" as const, label: "Coach", node: coach }] : []),
   ]
   // Keyed by the section asked for, so a link to another one (?s=) opens it even on this page.

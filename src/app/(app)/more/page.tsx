@@ -1,6 +1,8 @@
 import { connection } from "next/server"
-import { Archive, BookOpen, CalendarDays, CalendarRange, ChartLine, Database, ListChecks, Palette, Plug, UserRound, BotMessageSquare } from "lucide-react"
+import { Archive, BookOpen, CalendarDays, CalendarRange, Calculator, ChartLine, Database, ListChecks, Palette, Plug, Sigma, UserRound, BotMessageSquare } from "lucide-react"
+import { FORMULA_IDS } from "@/core/formulas/registry"
 import { formatDay, rangeLabel } from "@/lib/format"
+import { COPY } from "../_lib/formulas.copy"
 import { coachAccess } from "@/server/coach/store"
 import { userCtx } from "@/server/queries/common"
 import { getMore } from "@/server/queries/settings"
@@ -21,6 +23,7 @@ export default async function MorePage() {
     { icon: UserRound, label: "Account", href: "/settings?s=account" },
     { icon: Plug, label: "Data source", href: "/settings?s=source" },
     { icon: Palette, label: "App", href: "/settings?s=app" },
+    { icon: Calculator, label: COPY.calc.section, href: "/settings?s=calc" },
     ...(coach ? [{ icon: BotMessageSquare, label: "Coach", href: "/settings?s=coach" }] : []),
   ]
   const reports: LinkListRow[] = [
@@ -45,7 +48,13 @@ export default async function MorePage() {
           title="Journal"
           rows={[{ icon: ListChecks, label: "Behaviours", aside: `${vm.behaviours.shown} of ${vm.behaviours.total} shown`, href: "/more/behaviours" }]}
         />
-        <LinkList title="Help" rows={[{ icon: BookOpen, label: "How Pulse works", aside: `${SCORE_DOCS.length} scores`, href: "/more/how-it-works" }]} />
+        <LinkList
+          title="Help"
+          rows={[
+            { icon: BookOpen, label: "How Pulse works", aside: `${SCORE_DOCS.length} scores`, href: "/more/how-it-works" },
+            { icon: Sigma, label: COPY.formulas.more, aside: COPY.formulas.moreAside(FORMULA_IDS.length), href: "/more/formulas" },
+          ]}
+        />
         <LinkList title="Your data" rows={[{ icon: Database, label: "Export", aside: "CSV, JSON", href: "/more/data" }]} />
         <About version={vm.version} scoringVersion={vm.scoringVersion} />
       </div>

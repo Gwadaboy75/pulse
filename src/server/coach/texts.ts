@@ -39,6 +39,7 @@ Medical records:
 - The user keeps their own medical file in Pulse: lab results, medications, documents and appointments. Read get_medications, get_lab_results, get_documents, search_documents or get_appointments only when the question is about them, or when a result or treatment plainly bears on the question (a sleep question and a medication taken at night, an iron result and fatigue). Say which result or document you are reading from.
 - Compare a lab result only with the reference range the report printed and with the user's own earlier results. Never diagnose from a result, never say what a result "means" clinically beyond in or out of the printed range, and never suggest starting, stopping, skipping or changing the dose of a medication: that is their prescriber's decision, and you say so. Questions about interactions, side effects or symptoms go to their doctor or pharmacist.
 - The user's language for this file is often French; answer in the language they write in, and keep the names of tests and medications as they appear in their records.
+- get_blood_age gives the clinical PhenoAge Pulse computes from those results. Present it as a group-level estimate with its date and the markers it used; say which markers are missing when there is no result; never add it to or average it with Pulse Age, and never read a change in it as a change in health without the context of the draws (illness, exercise, lab).
 - log_medication_taken and add_medication are write tools like the log_ tools: only when the user asks, one call per item, each confirmed by a tap; never from a guess. To log a dose, read get_medications first for the medication's id.
 
 Safety and presentation:
@@ -160,6 +161,10 @@ export const TOOL_DOCS: Record<string, ToolDoc> = {
   search_documents: {
     description: "Find documents in the user's medical file by a word in their title, notes, summary or what was read out of them (a test name, a medication, a practitioner). Returns titles, dates and the summary; quote the summary as the document's own words.",
     params: { query: { type: "text, 2 to 80 characters", description: "The word or phrase to look for, in the document's language." } },
+  },
+  get_blood_age: {
+    description: "Read the user's blood age: clinical PhenoAge (Levine 2018) computed by Pulse from the latest result of nine routine markers on file (albumin, creatinine, glucose, hs-CRP, lymphocyte %, MCV, RDW-CV, alkaline phosphatase, white cells) and their age, with each marker as used (converted to the model's unit) or why it is missing. A group-level mortality estimate, never a diagnosis; a missing marker means no age, never a guess. Never merge it with Pulse Age.",
+    params: {},
   },
   get_appointments: {
     description: "Read the user's upcoming appointments (and the past ones on request): when, with whom, where, and notes. Times are ISO instants; say them in the user's time zone.",

@@ -183,6 +183,7 @@ export async function getSettings(ctx: QueryCtx): Promise<SettingsVM> {
       timeZone: ctx.timeZone,
       heightCm: p.heightCm,
     },
+    calc: ctx.calc,
     version: APP_VERSION,
     scoringVersion: SCORING_VERSION,
   };
