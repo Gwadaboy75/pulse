@@ -50,7 +50,21 @@ secure a server.
 1. Point a DNS record for your domain at the server.
 2. Run Caddy or nginx with a Let's Encrypt certificate and forward the domain to Pulse.
 3. Forward the `X-Forwarded-For` and `X-Forwarded-Proto` headers.
-4. With nginx, turn off response buffering for `/api/coach` (`proxy_buffering off;`) so coach answers stream.
+4. With nginx, turn off response buffering for `/api/coach` (`proxy_buffering off;`) so coach answers stream, and
+   allow request bodies of 20 MB (`client_max_body_size 20m;`) for the phone's Health Connect payloads and document
+   uploads.
+
+### Reverse proxy with Caddy
+
+The fork ships a ready-made Caddy overlay: edit the host name in `deploy/caddy/Caddyfile`, then
+
+```sh
+docker compose -f compose.yaml -f deploy/caddy/compose.caddy.yaml up -d
+```
+
+Caddy runs in Docker on the compose network, fetches the certificate, forwards to `pulse:3000`, streams the coach
+and accepts 20 MB bodies. Set `APP_URL=https://<your-host>` in `.env`: the phone's pairing code (docs/health-connect.md)
+is built from it.
 
 ## Real data on your laptop only
 

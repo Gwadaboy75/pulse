@@ -93,5 +93,9 @@ export function Evidence({ name, output }: { name: string; output: unknown }) {
     </Card><BasedOn href={d.period ? `/reports/${encodeURIComponent(d.period)}` : "/reports"}>Report · {d.start} to {d.end}</BasedOn></div>
   }
   if (name === "get_profile") return <BasedOn href="/settings?s=account">Your profile</BasedOn>
+  if (name === "get_medications") return <BasedOn href="/medical/medications">Your medications</BasedOn>
+  if (name === "get_lab_results") return <BasedOn href="/medical/labs">Your lab results</BasedOn>
+  if (name === "get_documents" || name === "search_documents") return <BasedOn href="/medical/documents">Your documents</BasedOn>
+  if (name === "get_appointments") return <BasedOn href="/medical/appointments">Your appointments</BasedOn>
   return null
 }

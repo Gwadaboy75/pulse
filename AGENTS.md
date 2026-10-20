@@ -20,6 +20,16 @@ Guide for coding agents (and humans) working on Pulse: a self-hosted Next.js app
 
 Run `pnpm typecheck && pnpm lint && pnpm test` before every commit. Run `pnpm e2e` after UI changes.
 
+## This fork (Gwadaboy75/pulse)
+
+A personal fork that adds, in its own directories, with the upstream rules below kept:
+
+- `src/server/sources/healthConnect/`: a second data source, the phone's Health Connect posted by Life Dashboard Companion to `src/app/api/ingest/health-connect/[id]` (docs/health-connect.md). `DATA_SOURCE=health-connect` is a real-account instance without Google; real-account gates key on `getConfig().demo`, not on Google.
+- `src/server/medical/`, `src/server/queries/medical.ts`, `src/server/actions/medical.ts`, `src/app/(app)/medical/`: the Médical tab (docs/medical.md). Its copy is French, in `src/app/(app)/medical/copy.ts`.
+- `src/server/coach/medicalTools.ts`: the coach's medical tools; their writes wait for approval like the log tools.
+- The **Landing site** rule below is suspended on the fork: `site/` is upstream's and is not updated here.
+- Commit with the session's attribution rather than the upstream identity; `main` is upstream's, work lands on the fork's branches.
+
 ## Layout
 
 - `src/core/`: pure TypeScript with no I/O.

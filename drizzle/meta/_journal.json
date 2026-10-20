@@ -78,6 +78,13 @@
       "when": 1792520591833,
       "tag": "0010_health_connect_ingest",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792522300066,
+      "tag": "0011_medical_records",
+      "breakpoints": true
     }
   ]
 }

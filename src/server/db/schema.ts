@@ -651,6 +651,146 @@ export const hcVitals = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.kind, t.ts] }), index("hc_vitals_record").on(t.userId, t.recordUuid)],
 );
 
+// ── Medical records (src/server/medical) ─────────────────────────────────────
+// The person's own health file beside the band's data: documents (lab reports, prescriptions, letters) kept on a
+// volume, the lab results and medications read out of them (after the person's review), the doses they take, their
+// appointments and practitioners. Nothing here feeds a score; the coach reads it through its own tools.
+
+export const practitioners = pgTable(
+  "practitioners",
+  {
+    userId: userId(),
+    id: serial("id").notNull(),
+    name: text("name").notNull(),
+    specialty: text("specialty"),
+    phone: text("phone"),
+    address: text("address"),
+    notes: text("notes"),
+    createdAt: ts("created_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.id] })],
+);
+
+/**
+ * An uploaded file (PDF or photo) on the documents volume (`file_path` is relative to DOCUMENTS_DIR), what the model
+ * read out of it (`extraction`, kept for review and never applied on its own) and where it stands: uploaded →
+ * extracting → review → done, or failed.
+ */
+export const medicalDocuments = pgTable(
+  "medical_documents",
+  {
+    userId: userId(),
+    id: text("id").notNull(),
+    kind: text("kind", { enum: ["lab_report", "prescription", "imaging", "letter", "other"] }).notNull(),
+    title: text("title").notNull(),
+    filePath: text("file_path").notNull(),
+    mime: text("mime").notNull(),
+    bytes: integer("bytes").notNull(),
+    sha256: text("sha256").notNull(),
+    /** When the document is about (the sample date, the prescription date), as a local day; null until known. */
+    day: day("day"),
+    practitionerId: integer("practitioner_id"),
+    extraction: jsonb("extraction"),
+    /** Plain text the model (or a PDF text layer) gave back, for search. */
+    extractedText: text("extracted_text"),
+    status: text("status", { enum: ["uploaded", "extracting", "review", "done", "failed"] }).notNull(),
+    error: text("error"),
+    notes: text("notes"),
+    createdAt: ts("created_at").notNull(),
+    updatedAt: ts("updated_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index("medical_documents_day").on(t.userId, t.day)],
+);
+
+/** One analyte on one day. `analyte` is the normalised key trends group on (`hemoglobin`, `ldl_cholesterol`, `tsh`); `label` is what the lab printed. */
+export const labResults = pgTable(
+  "lab_results",
+  {
+    userId: userId(),
+    id: serial("id").notNull(),
+    documentId: text("document_id"),
+    day: day("day").notNull(),
+    analyte: text("analyte").notNull(),
+    label: text("label").notNull(),
+    value: real("value"),
+    /** A result that is not a number ("negative", "trace"). */
+    valueText: text("value_text"),
+    unit: text("unit"),
+    refLow: real("ref_low"),
+    refHigh: real("ref_high"),
+    /** The range as printed when it is not a plain low–high ("< 5", "negative"). */
+    refText: text("ref_text"),
+    flag: text("flag", { enum: ["low", "normal", "high", "abnormal"] }),
+    labName: text("lab_name"),
+    createdAt: ts("created_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index("lab_results_analyte").on(t.userId, t.analyte, t.day), index("lab_results_document").on(t.userId, t.documentId)],
+);
+
+export type MedicationSchedule = { times: string[]; weekdays?: number[]; prn?: boolean };
+
+export const medications = pgTable(
+  "medications",
+  {
+    userId: userId(),
+    id: serial("id").notNull(),
+    name: text("name").notNull(),
+    dose: text("dose"),
+    form: text("form"),
+    route: text("route"),
+    /** When to take it: clock times (`"08:00"`), optionally the weekdays (1 = Monday), or as needed (`prn`). */
+    schedule: jsonb("schedule").$type<MedicationSchedule>(),
+    startedOn: day("started_on"),
+    endedOn: day("ended_on"),
+    active: boolean("active").notNull().default(true),
+    reason: text("reason"),
+    practitionerId: integer("practitioner_id"),
+    /** The prescription it came from. */
+    documentId: text("document_id"),
+    notes: text("notes"),
+    createdAt: ts("created_at").notNull(),
+    updatedAt: ts("updated_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.id] })],
+);
+
+/** A dose taken or skipped, as the person logged it (or the coach, after their approval). */
+export const medicationEvents = pgTable(
+  "medication_events",
+  {
+    userId: userId(),
+    id: serial("id").notNull(),
+    medicationId: integer("medication_id").notNull(),
+    ts: ts("ts").notNull(),
+    day: day("day").notNull(),
+    status: text("status", { enum: ["taken", "skipped"] }).notNull(),
+    note: text("note"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.id] }),
+    foreignKey({ columns: [t.userId, t.medicationId], foreignColumns: [medications.userId, medications.id] }).onDelete("cascade"),
+    index("medication_events_day").on(t.userId, t.day),
+  ],
+);
+
+export const appointments = pgTable(
+  "appointments",
+  {
+    userId: userId(),
+    id: serial("id").notNull(),
+    practitionerId: integer("practitioner_id"),
+    title: text("title").notNull(),
+    startsAt: ts("starts_at").notNull(),
+    endsAt: ts("ends_at"),
+    location: text("location"),
+    notes: text("notes"),
+    status: text("status", { enum: ["planned", "done", "cancelled"] }).notNull().default("planned"),
+    documentId: text("document_id"),
+    createdAt: ts("created_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index("appointments_starts").on(t.userId, t.startsAt)],
+);
+
 /** Tables holding a user's synced Google data and what was computed from it (cleared on a Google account switch). */
 export const SYNCED_TABLES = [
   syncState, rawPayloads, hrDays, stepsDays, dailyMetrics, sleepSegments, sleepSessions, exercises, dailyValues,

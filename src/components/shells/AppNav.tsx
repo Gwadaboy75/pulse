@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
-import { createLucideIcon, HeartPulse, Menu, NotebookPen, Settings, type LucideIcon } from "lucide-react"
+import { createLucideIcon, HeartPulse, Menu, NotebookPen, Settings, Stethoscope, type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Mark } from "@/components/brand/Mark"
 import { Wordmark } from "@/components/brand/Wordmark"
@@ -24,6 +24,7 @@ const HomeChart = createLucideIcon("home-chart", [
 const TABS: { tab: Tab; label: string; icon: LucideIcon }[] = [
   { tab: "home", label: "Home", icon: HomeChart },
   { tab: "health", label: "Health", icon: HeartPulse },
+  { tab: "medical", label: "Médical", icon: Stethoscope },
   { tab: "journal", label: "Journal", icon: NotebookPen },
   { tab: "more", label: "More", icon: Menu },
 ]
@@ -57,13 +58,13 @@ function Lens({ index, axis, className }: { index: number; axis: "x" | "y"; clas
   )
 }
 
-/** Phone tab bar: a 62 px glass squircle with four destinations (spec §4.2, G1). */
+/** Phone tab bar: a 62 px glass squircle with five destinations (spec §4.2, G1; the fork adds Médical). */
 function TabBar({ current }: { current: number }) {
   const go = useTabNavigate()
   return (
     <nav aria-label="Primary" onClick={() => haptic(6)} className={cn(GLASS, "relative h-[62px] min-w-0 flex-1 rounded-[22px] p-1")}>
-      <Lens index={current} axis="x" className="inset-y-1 left-1 w-[calc((100%-8px)/4)] rounded-[18px]" />
-      <ul className="relative grid h-full grid-cols-4">
+      <Lens index={current} axis="x" className="inset-y-1 left-1 w-[calc((100%-8px)/5)] rounded-[18px]" />
+      <ul className="relative grid h-full grid-cols-5">
         {TABS.map(({ tab, label, icon: Icon }, i) => (
           <li key={tab} className="min-w-0">
             <Link

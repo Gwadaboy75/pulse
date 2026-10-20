@@ -506,6 +506,105 @@ export type ShellStatusVM = {
   streak: { days: number; asOf: string } | null;
 };
 
+// ── Medical records (/medical) ──────────────────────────────────────────────
+
+export type LabFlag = "low" | "normal" | "high" | "abnormal";
+export type DocumentKind = "lab_report" | "prescription" | "imaging" | "letter" | "other";
+export type DocumentStatus = "uploaded" | "extracting" | "review" | "done" | "failed";
+
+export type LabResultVM = {
+  id: number;
+  day: string;
+  analyte: string;
+  label: string;
+  value: number | null;
+  valueText: string | null;
+  unit: string | null;
+  refLow: number | null;
+  refHigh: number | null;
+  refText: string | null;
+  flag: LabFlag | null;
+  labName: string | null;
+  documentId: string | null;
+};
+
+/** One analyte across its results: the latest, how many, and whether the last two moved. */
+export type AnalyteVM = { analyte: string; label: string; unit: string | null; latest: LabResultVM; count: number; delta: number | null };
+
+export type LabTrendVM = { analyte: string; label: string; unit: string | null; points: LabResultVM[]; range: { low: number | null; high: number | null } | null };
+
+export type MedicationVM = {
+  id: number;
+  name: string;
+  dose: string | null;
+  form: string | null;
+  route: string | null;
+  schedule: { times: string[]; weekdays?: number[]; prn?: boolean } | null;
+  startedOn: string | null;
+  endedOn: string | null;
+  active: boolean;
+  reason: string | null;
+  notes: string | null;
+  documentId: string | null;
+  practitioner: string | null;
+  /** Today: the doses due (clock times), and the ones logged. */
+  today: { due: string[]; taken: number; skipped: number; events: { id: number; ts: number; status: "taken" | "skipped" }[] };
+  lastTakenAt: number | null;
+};
+
+export type DocumentVM = {
+  id: string;
+  kind: DocumentKind;
+  title: string;
+  day: string | null;
+  status: DocumentStatus;
+  error: string | null;
+  mime: string;
+  bytes: number;
+  createdAt: number;
+  /** Where the file itself is served (`/documents/<id>`), for the viewer. */
+  url: string;
+  practitioner: string | null;
+  notes: string | null;
+  labCount: number;
+  medicationCount: number;
+};
+
+export type DocumentDetailVM = DocumentVM & {
+  extraction: unknown | null;
+  extractedText: string | null;
+  labs: LabResultVM[];
+  medications: { id: number; name: string; dose: string | null; active: boolean }[];
+  /** The coach's model is set up, so extraction can run (or run again). */
+  canExtract: boolean;
+};
+
+export type AppointmentVM = {
+  id: number;
+  title: string;
+  startsAt: number;
+  endsAt: number | null;
+  location: string | null;
+  notes: string | null;
+  status: "planned" | "done" | "cancelled";
+  practitioner: string | null;
+  documentId: string | null;
+};
+
+export type PractitionerVM = { id: number; name: string; specialty: string | null; phone: string | null; address: string | null; notes: string | null };
+
+export type MedicalHubVM = {
+  today: string;
+  timeZone: string;
+  medications: MedicationVM[];
+  nextAppointment: AppointmentVM | null;
+  /** The latest result of each analyte that is out of its range. */
+  outOfRange: LabResultVM[];
+  recentDocuments: DocumentVM[];
+  pendingReview: number;
+  counts: { documents: number; analytes: number; medications: number; appointments: number };
+};
+
 /** Settings › Data source › the phone (Life Dashboard Companion posting Health Connect to this server). */
 export type HealthConnectVM = {
   /** The webhook URL the phone posts to; null until APP_URL is set on the server. */

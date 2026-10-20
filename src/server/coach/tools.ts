@@ -22,6 +22,7 @@ import { getStress } from "../queries/health";
 import { TREND_METRICS, type TrendMetricKey } from "../queries/trends";
 import { addDays, daysBetween } from "../time";
 import { logTools } from "./logTools";
+import { medicalTools } from "./medicalTools";
 import { defaultTexts, type Texts } from "./texts";
 
 const round = (v: number, dp = 0) => Math.round(v * 10 ** dp) / 10 ** dp;
@@ -222,6 +223,7 @@ export function coachTools(ctx: QueryCtx, t: Texts = defaultTexts) {
       },
     }),
     ...logTools(ctx, t),
+    ...medicalTools(ctx, t),
   };
 }
 

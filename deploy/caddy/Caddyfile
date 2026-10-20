@@ -1,0 +1,17 @@
+# Replace pulse.example.com with your domain (its DNS record points at this server). Caddy fetches and renews the
+# certificate itself. On a home network with no domain, use `pulse.lan { tls internal ... }` and install Caddy's root
+# certificate on the phone (Life Dashboard Companion: Advanced › Server certificates).
+pulse.example.com {
+	encode zstd gzip
+
+	# The phone's Health Connect payloads are a few MB each; the app asks for at least 10 MB (docs/health-connect.md).
+	request_body {
+		max_size 20MB
+	}
+
+	reverse_proxy pulse:3000 {
+		# The coach streams its answers: no buffering.
+		flush_interval -1
+		# Caddy sets X-Forwarded-For and X-Forwarded-Proto itself.
+	}
+}

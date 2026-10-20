@@ -31,6 +31,8 @@ COPY --from=build --chown=node:node /app/drizzle ./drizzle
 # `docker exec pulse node scripts/reset-password.mjs <email-or-username>` (no email server for resets).
 # `docker exec pulse node scripts/seed-user.mjs <username>` fills a test account with generated data.
 COPY --from=build --chown=node:node /app/build-scripts/ ./scripts/
+# Uploaded medical documents (compose mounts the pulse-docs volume here; a fresh volume takes this directory's owner).
+RUN mkdir -p /app/data/documents && chown -R node:node /app/data
 USER node
 EXPOSE 3000
 # No curl in slim; node's fetch does it.

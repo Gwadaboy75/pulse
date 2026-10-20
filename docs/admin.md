@@ -101,10 +101,16 @@ umask 077
 dir=/var/backups/pulse
 mkdir -p "$dir" && chmod 700 "$dir"
 docker exec pulse-db pg_dump -U pulse -Fc pulse > "$dir/pulse-$(date +%F).dump"
+# The uploaded medical documents (the pulse-docs volume, docs/medical.md), beside the dump.
+docker run --rm -v pulse_pulse-docs:/d:ro -v "$dir":/b alpine tar czf "/b/docs-$(date +%F).tgz" -C /d .
 ls -1t "$dir"/pulse-*.dump | tail -n +15 | xargs -r rm -f
+ls -1t "$dir"/docs-*.tgz | tail -n +15 | xargs -r rm -f
 ```
 
-The dump holds everyone's health data and Google tokens, so encrypt any copy that leaves the machine.
+The volume's full name is the compose project name plus `_pulse-docs` (`docker volume ls` shows it); adjust it if your
+checkout folder is not called `pulse`.
+
+The dump holds everyone's health data, medical records and Google tokens, so encrypt any copy that leaves the machine.
 
 To restore a dump:
 

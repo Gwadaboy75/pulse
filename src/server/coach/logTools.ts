@@ -4,6 +4,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { CYCLE_SYMPTOMS, FLOWS, LOG_TOOLS, MEALS, MOODS, OVULATION_RESULTS, SYMPTOMS, VALENCES, type LogToolName } from "@/lib/log";
+import { MEDICAL_WRITE_TOOLS, type MedicalWriteToolName } from "@/lib/medical";
 import { logFor, type LogInput } from "../logging";
 import type { QueryCtx } from "../queries/common";
 import { defaultTexts, type Texts } from "./texts";
@@ -88,5 +89,5 @@ export function logTools(ctx: QueryCtx, t: Texts = defaultTexts) {
   };
 }
 
-/** Every log tool waits for the user's tap; the read tools run as before. */
-export const coachApproval = Object.fromEntries(LOG_TOOLS.map((name) => [name, "user-approval"])) as Partial<Record<LogToolName, "user-approval">>;
+/** Every log tool and every medical write tool waits for the user's tap; the read tools run as before. */
+export const coachApproval = Object.fromEntries([...LOG_TOOLS, ...MEDICAL_WRITE_TOOLS].map((name) => [name, "user-approval"])) as Partial<Record<LogToolName | MedicalWriteToolName, "user-approval">>;

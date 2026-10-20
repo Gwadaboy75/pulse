@@ -40,6 +40,13 @@ phone, from Health Connect.
 - **Pulse Age**, **Stress Monitor** and **Energy Bank** through the day
 - **Health Monitor**, **Journal**, **Trends**, **Reports**, **My Dashboard** and an optional **AI coach** with your own key
 
+### What this fork adds
+
+- **Your phone as the data source**: Fitbit → Health Connect → [Life Dashboard Companion](https://github.com/owen282000/life-dashboard-companion-app) → your server, with no Google Cloud project ([docs/health-connect.md](docs/health-connect.md)). Beside a Google connection it fills in what Google leaves out.
+- **Médical**, a fifth tab for your own medical file: lab results with their reference ranges and trends, medications and the doses you take, documents (prescriptions, blood tests) read by your coach's model and confirmed by you, appointments ([docs/medical.md](docs/medical.md)).
+- The **coach** reads that file on request (and only on request), and can log a dose or add a medication after your tap.
+- A ready-made **Caddy** HTTPS overlay ([docs/other-setups.md](docs/other-setups.md#reverse-proxy-with-caddy)).
+
 Every score is explained on the [metrics pages](https://pulse.portlabs.in/metrics/) and in [docs/algorithms](docs/algorithms).
 More screens: [docs/screenshots.md](docs/screenshots.md).
 

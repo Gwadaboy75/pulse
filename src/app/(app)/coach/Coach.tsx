@@ -24,6 +24,8 @@ import type { CoachSuggestion } from "@/core/algorithms/coachSuggestions"
 import { Evidence } from "./Evidence"
 import { LogConfirm, type LogPart } from "./LogConfirm"
 import { isLogTool } from "@/lib/log"
+import { isMedicalWriteTool } from "@/lib/medical"
+import { MedicalConfirm } from "./MedicalConfirm"
 
 type DayDigest = Awaited<ReturnType<typeof dayDigest>>
 type Num = { value: number | null; reason?: string | null }
@@ -42,6 +44,11 @@ const RUNNING: Record<string, string> = {
   get_health: "Checking your Health Monitor…",
   get_report: "Reading your report…",
   get_profile: "Checking your profile…",
+  get_medications: "Reading your medications…",
+  get_lab_results: "Reading your lab results…",
+  get_documents: "Looking through your documents…",
+  search_documents: "Searching your documents…",
+  get_appointments: "Checking your appointments…",
 }
 
 const REASON: Record<string, string> = {
@@ -117,6 +124,7 @@ function PartView({ part, onAnswer }: { part: Part; onAnswer?: Answer }) {
   if (!part.type.startsWith("tool-")) return null
   const name = part.type.slice(5)
   if (isLogTool(name)) return <LogConfirm name={name} part={part as LogPart} onAnswer={onAnswer} />
+  if (isMedicalWriteTool(name)) return <MedicalConfirm name={name} part={part as LogPart} onAnswer={onAnswer} />
   const tool = part as Part & { state: string; output?: unknown }
   if (tool.state === "output-error") return <Caption>Couldn’t read that part of your data.</Caption>
   if (tool.state !== "output-available") return <Caption live>{RUNNING[name] ?? "Looking at your data…"}</Caption>

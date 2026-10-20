@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import { CYCLE_SYMPTOMS, LOG_TOOLS } from "@/lib/log";
+import { MEDICAL_WRITE_TOOLS } from "@/lib/medical";
 import { ctxFor } from "../testing";
 import { coachApproval, logTools } from "./logTools";
 
@@ -16,5 +17,5 @@ it("cycle tools and cycle symptoms exist only on a female profile", () => {
 });
 
 it("every log tool waits for the user's approval", () => {
-  expect(coachApproval).toEqual(Object.fromEntries(LOG_TOOLS.map((n) => [n, "user-approval"])));
+  expect(coachApproval).toEqual(Object.fromEntries([...LOG_TOOLS, ...MEDICAL_WRITE_TOOLS].map((n) => [n, "user-approval"])));
 });

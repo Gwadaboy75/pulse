@@ -1,0 +1,25 @@
+# HTTPS in front of Pulse with Caddy, for a server with a domain name (docs/other-setups.md#reverse-proxy-with-caddy).
+#
+#   docker compose -f compose.yaml -f deploy/caddy/compose.caddy.yaml up -d
+#
+# Caddy gets a Let's Encrypt certificate for the host named in deploy/caddy/Caddyfile and forwards everything to
+# Pulse over the compose network. Pulse keeps publishing no host port.
+services:
+  caddy:
+    image: caddy:2
+    container_name: pulse-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - pulse
+
+volumes:
+  caddy-data:
+  caddy-config:

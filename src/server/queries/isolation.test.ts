@@ -12,6 +12,10 @@ import {
   exercises,
   healthRecords,
   intradaySeries,
+  appointments,
+  labResults,
+  medicalDocuments,
+  medications,
   journalEntries,
   journalNotes,
   journalTags,
@@ -32,6 +36,7 @@ import { getFitness, getHealthHub, getHealthspan, getMonitor, getStress } from "
 import { dashboardKeys, getHome, activityLogContext } from "./home";
 import { getBehaviours, getJournal, getJournalInsights } from "./journal";
 import { getLog } from "./log";
+import { getAnalytes, getAppointments, getDocument, getDocuments, getLabTrend, getMedicalHub, getMedications } from "./medical";
 import { DETAIL_KEYS, getMetricDetail } from "./metric";
 import { getRecovery } from "./recovery";
 import { getReport, getReportArchive } from "./reports";
@@ -86,6 +91,13 @@ async function screens(ctx: QueryCtx, activityId: string | null, period: string 
     shellGoogle: await getShellStatus(g),
     streak: await getWearStreak(ctx),
     dashboard: await dashboardKeys(ctx.db, ctx.userId),
+    medicalHub: await getMedicalHub(ctx),
+    analytes: await getAnalytes(ctx),
+    labTrend: await getLabTrend(ctx, "hemoglobin"),
+    medications: await getMedications(ctx),
+    documents: await getDocuments(ctx),
+    intruderDocument: await getDocument(ctx, "44444444-4444-4444-8444-444444444444"),
+    appointments: await getAppointments(ctx),
   });
   return out;
 }
@@ -168,6 +180,10 @@ beforeAll(async () => {
     { ...user, type: "seed", lastSuccessAt: NOW - 777, lastError: "[seed] INTRUDER" },
   ]);
   await db.insert(oauthTokens).values({ ...user, accessToken: "INTRUDER", refreshToken: "INTRUDER", expiresAt: NOW, scope: "INTRUDER", revokedAt: NOW, updatedAt: NOW });
+  await db.insert(medicalDocuments).values({ ...user, id: "44444444-4444-4444-8444-444444444444", kind: "lab_report", title: "INTRUDER report", filePath: "x/INTRUDER.pdf", mime: "application/pdf", bytes: 7, sha256: "INTRUDER", day: "1999-01-04", status: "review", createdAt: NOW, updatedAt: NOW });
+  await db.insert(labResults).values({ ...user, day: "1999-01-04", analyte: "hemoglobin", label: "INTRUDER hemoglobin", value: 777.7, unit: "g/dL", refLow: 13, refHigh: 17, flag: "high", createdAt: NOW });
+  await db.insert(medications).values({ ...user, name: "INTRUDER pill", schedule: { times: ["08:00"] }, active: true, createdAt: NOW, updatedAt: NOW });
+  await db.insert(appointments).values({ ...user, title: "INTRUDER visit", startsAt: NOW + 86400, status: "planned", createdAt: NOW });
 });
 
 describe("screen queries are scoped to one user", () => {
@@ -219,6 +235,12 @@ describe("screen queries are scoped to one user", () => {
     expect(monitor.measurements.find((m) => m.key === "weight")!.metric.value).toBe(177.7);
     const log = vms.log as Awaited<ReturnType<typeof getLog>>;
     expect([...log.water.entries, ...log.food.meals.flatMap((m) => m.entries)].map((e) => e.id).sort()).toEqual(["INTRUDER-food", "INTRUDER-water"]);
+    const hub = vms.medicalHub as Awaited<ReturnType<typeof getMedicalHub>>;
+    expect(hub.medications.map((m) => m.name)).toEqual(["INTRUDER pill"]);
+    expect(hub.nextAppointment?.title).toBe("INTRUDER visit");
+    expect(hub.outOfRange.map((l) => l.label)).toEqual(["INTRUDER hemoglobin"]);
+    expect(hub.pendingReview).toBe(1);
+    expect((vms.intruderDocument as { title: string } | null)?.title).toBe("INTRUDER report");
   });
 
   it("user 1's settings and shell still read user 1's own sync rows and grant", async () => {

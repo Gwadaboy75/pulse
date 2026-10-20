@@ -29,6 +29,10 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgres://pulse:${POSTGRES_PASSWORD}@db:5432/pulse
+      DOCUMENTS_DIR: /app/data/documents
+    volumes:
+      # Uploaded medical documents (Médical › Documents): a named volume, backed up beside the database (docs/admin.md).
+      - pulse-docs:/app/data/documents
     depends_on:
       db:
         condition: service_healthy
@@ -39,3 +43,4 @@ services:
 
 volumes:
   pulse-pg:
+  pulse-docs:

@@ -38,6 +38,10 @@ const Env = z
     /** Tests and e2e only: a scripted coach model. Refused in production. */
     COACH_MOCK: z.stringbool().default(false),
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+    /** Where uploaded medical documents are kept (a volume in compose). Default: ./data/documents under the app. */
+    DOCUMENTS_DIR: z.string().min(1).optional(),
+    /** The largest upload accepted, in bytes. Default 25 MB. */
+    DOCUMENTS_MAX_BYTES: z.coerce.number().int().min(1024).optional(),
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
     APP_URL: z.url().optional(),
@@ -103,6 +107,7 @@ export function parseConfig(env: Record<string, string | undefined>) {
     coachMock: e.COACH_MOCK,
     supportEmail: e.SUPPORT_EMAIL ?? null,
     port: e.PORT,
+    documents: { dir: e.DOCUMENTS_DIR ?? "data/documents", maxBytes: e.DOCUMENTS_MAX_BYTES ?? 25 * 1024 * 1024 },
     avatarUrl: e.AVATAR_URL ?? null,
     android: e.ANDROID_PACKAGE_NAME && e.ANDROID_CERT_SHA256?.length ? { packageName: e.ANDROID_PACKAGE_NAME, fingerprints: e.ANDROID_CERT_SHA256 } : null,
     vapid: e.VAPID_PUBLIC_KEY && e.VAPID_PRIVATE_KEY && e.VAPID_SUBJECT ? { publicKey: e.VAPID_PUBLIC_KEY, privateKey: e.VAPID_PRIVATE_KEY, subject: e.VAPID_SUBJECT } : null,
